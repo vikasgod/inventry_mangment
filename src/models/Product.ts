@@ -1,18 +1,79 @@
-import { Schema, model, models } from "mongoose";
 
-const ProductSchema = new Schema({
-  sku: { type: String, required: true, unique: true, trim: true, uppercase: true, index: true },
-  name: { type: String, required: true, trim: true, maxlength: 200 },
-  description: { type: String, default: "" },
-  category: { type: String, default: "" },
-  brand: { type: String, default: "" },
-  images: { type: [String], default: [] },
-  attributes: { type: Schema.Types.Mixed, default: {} },
-  mrp: { type: Number, required: true, min: 0 },
-  costPrice: { type: Number, required: true, min: 0 },
-  currency: { type: String, default: "INR" },
-  gstRate: { type: Number, default: 0, min: 0, max: 100 },
-  status: { type: String, enum: ["draft", "active", "archived"], default: "draft" },
-}, { timestamps: true });
+import mongoose, { Schema, model, models } from "mongoose";
 
-export default models.Product || model("Product", ProductSchema);
+const VariantSchema = new Schema(
+  {
+    name: { type: String, trim: true, required: true },
+    sku: { type: String, trim: true, required: true },
+    attributes: {
+      type: Map,
+      of: String,
+      default: {},
+    },
+    price: { type: Number, min: 0, required: true },
+    stock: { type: Number, min: 0, default: 0 },
+  },
+  { _id: true }
+);
+
+const ProductSchema = new Schema(
+  {
+    name: { type: String, required: true, trim: true },
+    slug: { type: String, trim: true },
+    sku: {
+      type: String,
+      required: true,
+      trim: true,
+      uppercase: true,
+      unique: true,
+    },
+    description: { type: String, default: "" },
+    category: { type: String, required: true, trim: true },
+    brand: { type: String, default: "" },
+
+    images: {
+      type: [
+        {
+          url: { type: String, required: true },
+          publicId: { type: String, default: "" },
+        },
+      ],
+      default: [],
+    },
+
+    price: { type: Number, required: true, min: 0 },
+    compareAtPrice: { type: Number, min: 0, default: 0 },
+    costPrice: { type: Number, min: 0, default: 0 },
+
+    stock: { type: Number, min: 0, default: 0 },
+    lowStockThreshold: { type: Number, min: 0, default: 5 },
+
+    variants: { type: [VariantSchema], default: [] },
+
+    channels: {
+      type: [String],
+      enum: ["Website", "Amazon", "Flipkart", "Meesho"],
+      default: ["Website"],
+    },
+
+    status: {
+      type: String,
+      enum: ["Active", "Low Stock", "Out of Stock", "Draft"],
+      default: "Active",
+    },
+
+    isArchived: { type: Boolean, default: false },
+  },
+  { timestamps: true }
+);
+
+ProductSchema.index({
+  name: "text",
+  sku: "text",
+  category: "text",
+});
+
+const Product =
+  models.Product || model("Product", ProductSchema);
+
+export default Product;
