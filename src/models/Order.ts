@@ -51,42 +51,69 @@ const OrderSchema = new Schema(
       unique: true,
       index: true,
     },
+
     channel: {
       type: String,
       enum: ["Website", "Amazon", "Flipkart", "Meesho"],
       required: true,
       index: true,
     },
-    customer: {
-      name: { type: String, required: true },
-      phone: { type: String, default: "" },
-      email: { type: String, default: "" },
-      address: { type: String, default: "" },
+
+    // External marketplace order ID
+    externalOrderId: {
+      type: String,
+      default: undefined,
+      trim: true,
     },
+
+    customer: {
+      name: {
+        type: String,
+        required: true,
+      },
+      phone: {
+        type: String,
+        default: "",
+      },
+      email: {
+        type: String,
+        default: "",
+      },
+      address: {
+        type: String,
+        default: "",
+      },
+    },
+
     items: {
       type: [OrderItemSchema],
       default: [],
     },
+
     subtotal: {
       type: Number,
       default: 0,
       min: 0,
     },
+
     shipping: {
       type: Number,
       default: 0,
       min: 0,
     },
+
     discount: {
       type: Number,
       default: 0,
       min: 0,
     },
+
     totalAmount: {
       type: Number,
       default: 0,
       min: 0,
     },
+
     status: {
       type: String,
       enum: [
@@ -99,27 +126,33 @@ const OrderSchema = new Schema(
       default: "Pending",
       index: true,
     },
+
     paymentMethod: {
       type: String,
       default: "Cash on Delivery (COD)",
     },
+
     paymentStatus: {
       type: String,
       default: "Pending Payment",
     },
+
     shippingMethod: {
       type: String,
       default: "Standard Delivery (3-5 days)",
     },
+
     trackingNumber: {
       type: String,
       default: "",
     },
+
     placedAt: {
       type: Date,
       default: Date.now,
       index: true,
     },
+
     statusHistory: [
       {
         status: String,
@@ -132,6 +165,23 @@ const OrderSchema = new Schema(
     ],
   },
   { timestamps: true }
+);
+
+// Unique external order ID per channel.
+// Orders without an external ID are excluded.
+OrderSchema.index(
+  {
+    channel: 1,
+    externalOrderId: 1,
+  },
+  {
+    unique: true,
+    partialFilterExpression: {
+      externalOrderId: {
+        $type: "string",
+      },
+    },
+  }
 );
 
 const Order =

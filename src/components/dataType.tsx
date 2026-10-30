@@ -7,7 +7,7 @@ export type ProductDash = {
   lowStockThreshold?: number;
 };
 
-export type Order = {
+export type OrderDash = {
   _id: string;
   orderNumber?: string;
   customerName?: string;
@@ -18,14 +18,13 @@ export type Order = {
   createdAt?: string;
 };
 
-
 export type DashboardData = {
   totalProducts?: number;
   totalOrders?: number;
   totalRevenue?: number;
   lowStockCount?: number;
   monthlySales?: { month: string; sales: number }[];
-  recentOrders?: Order[];
+  recentOrders?: OrderDash[];
   lowStockProducts?: ProductDash[];
   channelSales?: { channel: string; sales: number; orders?: number }[];
 };
@@ -264,3 +263,70 @@ export type Adjustment = {
 export function formatNumber(value: number) {
   return new Intl.NumberFormat("en-IN").format(value);
 }
+
+export type OrderStatus =
+  | "Pending"
+  | "Processing"
+  | "Shipped"
+  | "Delivered"
+  | "Cancelled";
+
+export type Order = {
+  _id: string;
+  orderNumber: string;
+  channel: string;
+  customer: {
+    name: string;
+    phone?: string;
+    email?: string;
+    address?: string;
+  };
+  items: {
+    name: string;
+    sku: string;
+    image?: string;
+    variant?: string;
+    price: number;
+    quantity: number;
+    total: number;
+  }[];
+  subtotal: number;
+  shipping: number;
+  discount: number;
+  totalAmount: number;
+  status: OrderStatus;
+  paymentMethod?: string;
+  paymentStatus?: string;
+  shippingMethod?: string;
+  trackingNumber?: string;
+  placedAt: string;
+  statusHistory?: {
+    status: string;
+    note?: string;
+    at: string;
+  }[];
+};
+
+export type Stats = {
+  total: number;
+  pending: number;
+  shipped: number;
+  delivered: number;
+  cancelled: number;
+};
+
+export const emptyStats: Stats = {
+  total: 0,
+  pending: 0,
+  shipped: 0,
+  delivered: 0,
+  cancelled: 0,
+};
+
+export const statusStyles: Record<OrderStatus, string> = {
+  Pending: "bg-amber-50 text-amber-700 border-amber-200",
+  Processing: "bg-orange-50 text-orange-700 border-orange-200",
+  Shipped: "bg-blue-50 text-blue-700 border-blue-200",
+  Delivered: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  Cancelled: "bg-red-50 text-red-700 border-red-200",
+};

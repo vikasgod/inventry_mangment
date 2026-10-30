@@ -187,6 +187,7 @@ export async function GET(request: NextRequest) {
 }
 
 
+
 export async function POST(request: NextRequest) {
   try {
     await connectDB();
@@ -208,13 +209,18 @@ export async function POST(request: NextRequest) {
       "Cancelled",
     ];
 
+    // Validate channel
     if (!allowedChannels.includes(body.channel)) {
       return NextResponse.json(
-        { success: false, message: "Invalid channel" },
+        {
+          success: false,
+          message: "Invalid channel",
+        },
         { status: 400 }
       );
     }
 
+    // Validate customer
     if (
       !body.customer?.name ||
       typeof body.customer.name !== "string"
@@ -228,6 +234,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate items
     if (!Array.isArray(body.items) || body.items.length === 0) {
       return NextResponse.json(
         {
@@ -266,6 +273,7 @@ export async function POST(request: NextRequest) {
       };
     });
 
+    // Calculate subtotal
     const subtotal = items.reduce(
       (sum: number, item: { total: number }) =>
         sum + item.total,
@@ -275,6 +283,7 @@ export async function POST(request: NextRequest) {
     const shipping = Number(body.shipping ?? 0);
     const discount = Number(body.discount ?? 0);
 
+    // Validate shipping and discount
     if (
       !Number.isFinite(shipping) ||
       shipping < 0 ||
@@ -293,37 +302,63 @@ export async function POST(request: NextRequest) {
 
     const totalAmount = subtotal + shipping - discount;
 
+    // Validate status
     const status = body.status || "Pending";
 
     if (!allowedStatuses.includes(status)) {
       return NextResponse.json(
-        { success: false, message: "Invalid order status" },
+        {
+          success: false,
+          message: "Invalid order status",
+        },
         { status: 400 }
       );
     }
 
+    // Handle external order ID
+    const externalOrderId =
+      typeof body.externalOrderId === "string"
+        ? body.externalOrderId.trim()
+        : "";
+
+    // Create order
     const order = await Order.create({
       orderNumber:
         body.orderNumber || `ORD-${Date.now()}`,
+
       channel: body.channel,
+
+      ...(externalOrderId
+        ? { externalOrderId }
+        : {}),
+
       customer: body.customer,
+
       items,
+
       subtotal,
       shipping,
       discount,
       totalAmount,
+
       status,
+
       paymentMethod:
         body.paymentMethod || "Cash on Delivery (COD)",
+
       paymentStatus:
         body.paymentStatus || "Pending Payment",
+
       shippingMethod:
         body.shippingMethod ||
         "Standard Delivery (3-5 days)",
+
       trackingNumber: body.trackingNumber || "",
+
       placedAt: body.placedAt
         ? new Date(body.placedAt)
         : new Date(),
+
       statusHistory: [
         {
           status,
@@ -341,9 +376,11 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     );
+
   } catch (error) {
     console.error("POST orders error:", error);
 
+    // Invalid item
     if (
       error instanceof Error &&
       error.message === "INVALID_ORDER_ITEM"
@@ -351,33 +388,61 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message: "Each item needs a name, valid price and quantity",
+          message:
+            "Each item needs a name, valid price and quantity",
         },
         { status: 400 }
       );
     }
 
-    if (
-      error instanceof Error &&
-      "code" in error &&
-      error.code === 11000
-    ) {
+    // MongoDB duplicate key
+    const mongoError = error as {
+      code?: number;
+      keyPattern?: Record<string, number>;
+    };
+
+    if (mongoError.code === 11000) {
+      if (mongoError.keyPattern?.orderNumber) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Order number already exists",
+          },
+          { status: 409 }
+        );
+      }
+
+      if (mongoError.keyPattern?.externalOrderId) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "External order ID already exists for this channel",
+          },
+          { status: 409 }
+        );
+      }
+
       return NextResponse.json(
         {
           success: false,
-          message: "Order number already exists",
+          message: "Duplicate order record",
         },
         { status: 409 }
       );
     }
 
+    // Mongoose validation
     if (
       error instanceof Error &&
       (error.name === "ValidationError" ||
         error.name === "CastError")
     ) {
       return NextResponse.json(
-        { success: false, message: error.message },
+        {
+          success: false,
+          message: error.message,
+        },
         { status: 400 }
       );
     }
@@ -391,3 +456,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+

@@ -18,89 +18,9 @@ import {
   RefreshCw,
   X,
 } from "lucide-react";
-
-type OrderStatus =
-  | "Pending"
-  | "Processing"
-  | "Shipped"
-  | "Delivered"
-  | "Cancelled";
-
-type Order = {
-  _id: string;
-  orderNumber: string;
-  channel: string;
-  customer: {
-    name: string;
-    phone?: string;
-    email?: string;
-    address?: string;
-  };
-  items: {
-    name: string;
-    sku: string;
-    image?: string;
-    variant?: string;
-    price: number;
-    quantity: number;
-    total: number;
-  }[];
-  subtotal: number;
-  shipping: number;
-  discount: number;
-  totalAmount: number;
-  status: OrderStatus;
-  paymentMethod?: string;
-  paymentStatus?: string;
-  shippingMethod?: string;
-  trackingNumber?: string;
-  placedAt: string;
-  statusHistory?: {
-    status: string;
-    note?: string;
-    at: string;
-  }[];
-};
-
-type Stats = {
-  total: number;
-  pending: number;
-  shipped: number;
-  delivered: number;
-  cancelled: number;
-};
-
-const emptyStats: Stats = {
-  total: 0,
-  pending: 0,
-  shipped: 0,
-  delivered: 0,
-  cancelled: 0,
-};
-
-const statusStyles: Record<OrderStatus, string> = {
-  Pending: "bg-amber-50 text-amber-700 border-amber-200",
-  Processing: "bg-orange-50 text-orange-700 border-orange-200",
-  Shipped: "bg-blue-50 text-blue-700 border-blue-200",
-  Delivered: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  Cancelled: "bg-red-50 text-red-700 border-red-200",
-};
-
-const currency = (amount: number) =>
-  new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 2,
-  }).format(amount || 0);
-
-const formatDate = (date: string) =>
-  new Date(date).toLocaleString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+import { StatCard } from "@/components/order/statCard";
+import { emptyStats, Order, OrderStatus, Stats, statusStyles } from "@/components/dataType";
+import { currency, formatDate } from "@/components/commonAndSmallFuc";
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -135,10 +55,9 @@ export default function OrdersPage() {
       if (from) params.set("from", from);
       if (to) params.set("to", to);
 
-      const response = await fetch(
-        `/api/orders?${params.toString()}`,
-        { cache: "no-store" }
-      );
+      const response = await fetch(`/api/orders?${params.toString()}`, {
+        cache: "no-store",
+      });
 
       const data = await response.json();
 
@@ -153,15 +72,11 @@ export default function OrdersPage() {
         if (!current) return data.orders[0] || null;
 
         return (
-          data.orders.find(
-            (order: Order) => order._id === current._id
-          ) || null
+          data.orders.find((order: Order) => order._id === current._id) || null
         );
       });
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to load orders"
-      );
+      setError(err instanceof Error ? err.message : "Failed to load orders");
     } finally {
       setLoading(false);
     }
@@ -175,9 +90,11 @@ export default function OrdersPage() {
     return () => window.clearTimeout(timer);
   }, [loadOrders]);
 
-  async function updateOrder(
-    patch: { status?: string; note?: string; trackingNumber?: string }
-  ) {
+  async function updateOrder(patch: {
+    status?: string;
+    note?: string;
+    trackingNumber?: string;
+  }) {
     if (!selected) return;
 
     setSaving(true);
@@ -185,16 +102,13 @@ export default function OrdersPage() {
     setNotice("");
 
     try {
-      const response = await fetch(
-        `/api/orders/${selected._id}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(patch),
-        }
-      );
+      const response = await fetch(`/api/orders/${selected._id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(patch),
+      });
 
       const data = await response.json();
 
@@ -209,9 +123,7 @@ export default function OrdersPage() {
 
       await loadOrders();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Unable to update order"
-      );
+      setError(err instanceof Error ? err.message : "Unable to update order");
     } finally {
       setSaving(false);
     }
@@ -219,14 +131,7 @@ export default function OrdersPage() {
 
   function exportCSV() {
     const rows = [
-      [
-        "Order ID",
-        "Channel",
-        "Customer",
-        "Amount",
-        "Status",
-        "Date",
-      ],
+      ["Order ID", "Channel", "Customer", "Amount", "Status", "Date"],
       ...orders.map((order) => [
         order.orderNumber,
         order.channel,
@@ -239,12 +144,7 @@ export default function OrdersPage() {
 
     const csv = rows
       .map((row) =>
-        row
-          .map(
-            (value) =>
-              `"${String(value).replace(/"/g, '""')}"`
-          )
-          .join(",")
+        row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(","),
       )
       .join("\r\n");
 
@@ -268,16 +168,14 @@ export default function OrdersPage() {
     setNotice("");
   }
 
-  console.log("first",selected)
+  console.log("first", selected);
 
   return (
     <main className="min-h-screen bg-slate-50 p-4 text-slate-800 md:p-6">
       <div className="mx-auto max-w-[1600px] space-y-5">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">
-              Orders
-            </h1>
+            <h1 className="text-2xl font-bold text-slate-900">Orders</h1>
             <p className="mt-1 text-sm text-slate-500">
               Manage and track website and marketplace orders
             </p>
@@ -380,10 +278,7 @@ export default function OrdersPage() {
             </select>
 
             <div className="flex items-center gap-2 rounded-lg border border-slate-200 px-2">
-              <CalendarDays
-                size={16}
-                className="shrink-0 text-slate-400"
-              />
+              <CalendarDays size={16} className="shrink-0 text-slate-400" />
               <input
                 type="date"
                 aria-label="Start date"
@@ -446,14 +341,12 @@ export default function OrdersPage() {
                     </td>
                   </tr>
                 ) : (
-                  orders.map((order) => (
+                  orders.map((order:any) => (
                     <tr
                       key={order._id}
                       onClick={() => viewOrder(order)}
                       className={`cursor-pointer hover:bg-blue-50/50 ${
-                        selected?._id === order._id
-                          ? "bg-blue-50"
-                          : ""
+                        selected?._id === order._id ? "bg-blue-50" : ""
                       }`}
                     >
                       <td className="whitespace-nowrap px-3 py-4 font-medium text-blue-700">
@@ -468,7 +361,7 @@ export default function OrdersPage() {
                       </td>
 
                       <td className="px-3 py-4">
-                      {order.customer?.name || order?.customerName || "N/A"}
+                        {order.customer?.name || order?.customerName || "N/A"}
                       </td>
 
                       <td className="px-3 py-4 font-semibold">
@@ -526,8 +419,7 @@ export default function OrdersPage() {
                 </div>
 
                 <p className="mt-1 text-xs text-slate-500">
-                  Placed {formatDate(selected.placedAt)} ·{" "}
-                  {selected.channel}
+                  Placed {formatDate(selected.placedAt)} · {selected.channel}
                 </p>
               </div>
 
@@ -562,10 +454,7 @@ export default function OrdersPage() {
 
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
               <div className="space-y-4">
-                <Panel
-                  title="Customer Details"
-                  icon={<UserRound size={16} />}
-                >
+                <Panel title="Customer Details" icon={<UserRound size={16} />}>
                   <Info label="Name" value={selected.customer.name ?? ""} />
                   <Info label="Phone" value={selected.customer.phone} />
                   <Info label="Email" value={selected.customer.email} />
@@ -595,9 +484,7 @@ export default function OrdersPage() {
                         )}
 
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold">
-                            {item.name}
-                          </p>
+                          <p className="text-sm font-semibold">{item.name}</p>
                           <p className="mt-1 text-xs text-slate-500">
                             {item.variant || item.sku}
                           </p>
@@ -616,16 +503,12 @@ export default function OrdersPage() {
               </div>
 
               <div className="space-y-4">
-                <Panel
-                  title="Order Status"
-                  icon={<CheckCircle2 size={16} />}
-                >
+                <Panel title="Order Status" icon={<CheckCircle2 size={16} />}>
                   <div className="ml-2 border-l-2 border-slate-200 pl-5">
                     {(selected.statusHistory?.length
                       ? [...selected.statusHistory].sort(
                           (a, b) =>
-                            new Date(a.at).getTime() -
-                            new Date(b.at).getTime()
+                            new Date(a.at).getTime() - new Date(b.at).getTime(),
                         )
                       : [
                           {
@@ -643,9 +526,7 @@ export default function OrdersPage() {
                           <CheckCircle2 size={14} />
                         </span>
 
-                        <p className="text-xs font-semibold">
-                          {event.status}
-                        </p>
+                        <p className="text-xs font-semibold">{event.status}</p>
 
                         <p className="mt-1 text-[11px] text-slate-500">
                           {formatDate(event.at)}
@@ -692,10 +573,9 @@ export default function OrdersPage() {
                           <button
                             disabled={saving}
                             onClick={() => {
-                              const element =
-                                document.getElementById(
-                                  "newStatus"
-                                ) as HTMLSelectElement | null;
+                              const element = document.getElementById(
+                                "newStatus",
+                              ) as HTMLSelectElement | null;
 
                               if (
                                 element &&
@@ -726,10 +606,7 @@ export default function OrdersPage() {
                     label="Shipping Method"
                     value={selected.shippingMethod}
                   />
-                  <Info
-                    label="Payment Method"
-                    value={selected.paymentMethod}
-                  />
+                  <Info label="Payment Method" value={selected.paymentMethod} />
 
                   <div className="my-3 border-t" />
 
@@ -773,10 +650,7 @@ export default function OrdersPage() {
                   </div>
                 </Panel>
 
-                <Panel
-                  title="Order Summary"
-                  icon={<CreditCard size={16} />}
-                >
+                <Panel title="Order Summary" icon={<CreditCard size={16} />}>
                   <MoneyLine
                     label="Subtotal"
                     value={currency(selected.subtotal)}
@@ -803,8 +677,8 @@ export default function OrdersPage() {
             </div>
 
             <p className="mt-4 rounded-lg border border-blue-100 bg-blue-50 p-3 text-xs text-blue-700">
-              <strong>Note:</strong> Online payment should only be marked
-              paid after verification from your payment gateway.
+              <strong>Note:</strong> Online payment should only be marked paid
+              after verification from your payment gateway.
             </p>
           </section>
         )}
@@ -828,8 +702,8 @@ export default function OrdersPage() {
 
             <p className="mt-2 text-sm leading-6 text-slate-500">
               Are you sure you want to cancel{" "}
-              <strong>{selected.orderNumber}</strong>? This will change
-              its status to Cancelled.
+              <strong>{selected.orderNumber}</strong>? This will change its
+              status to Cancelled.
             </p>
 
             <div className="mt-6 flex justify-end gap-2">
@@ -857,47 +731,6 @@ export default function OrdersPage() {
         </div>
       )}
     </main>
-  );
-}
-
-function StatCard({
-  title,
-  value,
-  label,
-  icon,
-  color,
-}: {
-  title: string;
-  value: number;
-  label: string;
-  icon: React.ReactNode;
-  color: string;
-}) {
-  const colors: Record<string, string> = {
-    blue: "bg-blue-50 text-blue-600",
-    amber: "bg-amber-50 text-amber-600",
-    green: "bg-emerald-50 text-emerald-600",
-    red: "bg-red-50 text-red-600",
-  };
-
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-start gap-3">
-        <div
-          className={`flex h-10 w-10 items-center justify-center rounded-full ${colors[color]}`}
-        >
-          {icon}
-        </div>
-
-        <div>
-          <p className="text-xs text-slate-500">{title}</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">
-            {value}
-          </p>
-          <p className="mt-1 text-[11px] text-slate-400">{label}</p>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -929,11 +762,7 @@ function ChannelIcon({ channel }: { channel: string }) {
     <span
       className={`flex h-6 w-6 items-center justify-center rounded-md text-xs font-bold ${styles[channel] || "bg-slate-100"}`}
     >
-      {channel === "Website" ? (
-        <Globe size={14} />
-      ) : (
-        letter[channel] || "?"
-      )}
+      {channel === "Website" ? <Globe size={14} /> : letter[channel] || "?"}
     </span>
   );
 }
@@ -958,18 +787,10 @@ function Panel({
   );
 }
 
-function Info({
-  label,
-  value,
-}: {
-  label: string;
-  value?: string;
-}) {
+function Info({ label, value }: { label: string; value?: string }) {
   return (
     <div className="mb-3 last:mb-0">
-      <p className="text-[11px] font-medium text-slate-500">
-        {label}
-      </p>
+      <p className="text-[11px] font-medium text-slate-500">{label}</p>
       <p className="mt-1 break-words text-xs leading-5 text-slate-700">
         {value || "—"}
       </p>
@@ -995,11 +816,7 @@ function MoneyLine({
       }`}
     >
       <span>{label}</span>
-      <span
-        className={`${green ? "text-emerald-600" : ""}`}
-      >
-        {value}
-      </span>
+      <span className={`${green ? "text-emerald-600" : ""}`}>{value}</span>
     </div>
   );
 }
