@@ -34,15 +34,13 @@ export default function Sidebar() {
 
   return (
     <aside className="fixed inset-y-0 left-0 z-50 flex h-screen w-64 flex-col overflow-y-auto border-r border-slate-200 bg-white px-4 py-6">
-      {/* Brand */}
       <Link
         href="/"
         className="mb-8 px-3 text-2xl font-extrabold tracking-tight text-slate-900"
       >
-        stock<span className="text-blue-600">pilot</span>
+        Stock<span className="text-blue-600">-CRM</span>
       </Link>
 
-      {/* Navigation */}
       <nav className="flex flex-col gap-1.5">
         {links.map(({ href, label, Icon }) => {
           const isActive =
@@ -75,7 +73,6 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Bottom information */}
       <div className="mt-auto pt-6">
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
           <p className="text-sm font-semibold text-slate-800">

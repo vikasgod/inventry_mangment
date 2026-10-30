@@ -1,21 +1,14 @@
-
 "use client";
 
 import { useMemo, useState } from "react";
 import {
   Archive,
-  ArrowDownRight,
-  ArrowUpRight,
   BarChart3,
-  Bell,
-  Check,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   CircleAlert,
   Download,
   History,
-  Menu,
   MoreVertical,
   Package,
   Plus,
@@ -25,221 +18,24 @@ import {
   Warehouse,
   X,
 } from "lucide-react";
-
-type InventoryItem = {
-  id: string;
-  name: string;
-  sku: string;
-  category: string;
-  warehouse: string;
-  variant: string;
-  color: string;
-  onHand: number;
-  reserved: number;
-  safetyStock: number;
-  price: number;
-  image: string;
-};
-
-const initialInventory: InventoryItem[] = [
-  {
-    id: "1",
-    name: "Running Shoes",
-    sku: "RS-001",
-    category: "Footwear",
-    warehouse: "Main Warehouse",
-    variant: "Size: 9",
-    color: "Black",
-    onHand: 150,
-    reserved: 12,
-    safetyStock: 10,
-    price: 2499,
-    image: "https://placehold.co/80x80/f1f5f9/334155?text=Shoes",
-  },
-  {
-    id: "2",
-    name: "Cotton T-Shirt",
-    sku: "TS-002",
-    category: "Apparel",
-    warehouse: "Main Warehouse",
-    variant: "Size: M",
-    color: "Red",
-    onHand: 320,
-    reserved: 45,
-    safetyStock: 20,
-    price: 599,
-    image: "https://placehold.co/80x80/fef2f2/991b1b?text=Tee",
-  },
-  {
-    id: "3",
-    name: "Backpack",
-    sku: "BP-003",
-    category: "Bags",
-    warehouse: "Delhi Warehouse",
-    variant: "Standard",
-    color: "Black",
-    onHand: 60,
-    reserved: 8,
-    safetyStock: 10,
-    price: 1499,
-    image: "https://placehold.co/80x80/f1f5f9/334155?text=Bag",
-  },
-  {
-    id: "4",
-    name: "Wireless Earbuds",
-    sku: "EB-004",
-    category: "Electronics",
-    warehouse: "Main Warehouse",
-    variant: "Standard",
-    color: "White",
-    onHand: 45,
-    reserved: 5,
-    safetyStock: 10,
-    price: 1999,
-    image: "https://placehold.co/80x80/f8fafc/334155?text=Audio",
-  },
-  {
-    id: "5",
-    name: "Smart Watch",
-    sku: "SW-005",
-    category: "Electronics",
-    warehouse: "Mumbai Warehouse",
-    variant: "Standard",
-    color: "Black",
-    onHand: 22,
-    reserved: 4,
-    safetyStock: 5,
-    price: 2999,
-    image: "https://placehold.co/80x80/f1f5f9/334155?text=Watch",
-  },
-  {
-    id: "6",
-    name: "Men's Jeans",
-    sku: "MJ-006",
-    category: "Apparel",
-    warehouse: "Main Warehouse",
-    variant: "Size: 32",
-    color: "Blue",
-    onHand: 80,
-    reserved: 10,
-    safetyStock: 15,
-    price: 1199,
-    image: "https://placehold.co/80x80/dbeafe/1e40af?text=Jeans",
-  },
-  {
-    id: "7",
-    name: "Water Bottle",
-    sku: "WB-007",
-    category: "Home & Kitchen",
-    warehouse: "Delhi Warehouse",
-    variant: "750 ml",
-    color: "Blue",
-    onHand: 15,
-    reserved: 3,
-    safetyStock: 5,
-    price: 499,
-    image: "https://placehold.co/80x80/dbeafe/1e40af?text=Bottle",
-  },
-  {
-    id: "8",
-    name: "Table Lamp",
-    sku: "TL-008",
-    category: "Home Decor",
-    warehouse: "Mumbai Warehouse",
-    variant: "Standard",
-    color: "White",
-    onHand: 50,
-    reserved: 8,
-    safetyStock: 10,
-    price: 899,
-    image: "https://placehold.co/80x80/fef3c7/92400e?text=Lamp",
-  },
-  {
-    id: "9",
-    name: "Yoga Mat",
-    sku: "YM-009",
-    category: "Sports",
-    warehouse: "Main Warehouse",
-    variant: "Standard",
-    color: "Purple",
-    onHand: 8,
-    reserved: 5,
-    safetyStock: 5,
-    price: 799,
-    image: "https://placehold.co/80x80/f3e8ff/6b21a8?text=Yoga",
-  },
-  {
-    id: "10",
-    name: "Sunglasses",
-    sku: "SG-010",
-    category: "Accessories",
-    warehouse: "Delhi Warehouse",
-    variant: "Standard",
-    color: "Black",
-    onHand: 70,
-    reserved: 15,
-    safetyStock: 10,
-    price: 899,
-    image: "https://placehold.co/80x80/f1f5f9/334155?text=Glasses",
-  },
-  {
-    id: "11",
-    name: "Coffee Mug",
-    sku: "CM-011",
-    category: "Home & Kitchen",
-    warehouse: "Main Warehouse",
-    variant: "Standard",
-    color: "White",
-    onHand: 35,
-    reserved: 4,
-    safetyStock: 8,
-    price: 299,
-    image: "https://placehold.co/80x80/f8fafc/334155?text=Mug",
-  },
-  {
-    id: "12",
-    name: "Wireless Mouse",
-    sku: "WM-012",
-    category: "Electronics",
-    warehouse: "Mumbai Warehouse",
-    variant: "Standard",
-    color: "Black",
-    onHand: 12,
-    reserved: 3,
-    safetyStock: 10,
-    price: 699,
-    image: "https://placehold.co/80x80/f1f5f9/334155?text=Mouse",
-  },
-];
-
-const warehouseNames = [
-  "Main Warehouse",
-  "Delhi Warehouse",
-  "Mumbai Warehouse",
-  "Other",
-];
-
-const categories = [
-  "Footwear",
-  "Apparel",
-  "Bags",
-  "Electronics",
-  "Home & Kitchen",
-  "Home Decor",
-  "Sports",
-  "Accessories",
-];
-
-type Adjustment = {
-  id: string;
-  type: "add" | "remove" | "set";
-  quantity: string;
-  reason: string;
-};
-
-function formatNumber(value: number) {
-  return new Intl.NumberFormat("en-IN").format(value);
-}
+import {
+  Adjustment,
+  categories,
+  formatNumber,
+  initialInventory,
+  InventoryItem,
+  warehouseNames,
+} from "@/components/dataType";
+import {
+  DetailBox,
+  FilterSelect,
+  QuickAction,
+  StatusBadge,
+  SummaryCard,
+} from "@/components/inventry/smallComponent";
+import Summary from "@/components/inventry/summary";
+import AdjustStockModal from "@/components/inventry/adjustStockModal";
+import MovmentHistory from "@/components/inventry/movmentHistory";
 
 function getStatus(item: InventoryItem) {
   if (item.onHand <= 0) return "Out of Stock";
@@ -272,10 +68,10 @@ export default function InventoryPage() {
   const reservedStock = items.reduce((sum, item) => sum + item.reserved, 0);
   const availableStock = items.reduce(
     (sum, item) => sum + Math.max(0, item.onHand - item.reserved),
-    0
+    0,
   );
   const lowStockCount = items.filter(
-    (item) => item.onHand <= item.safetyStock
+    (item) => item.onHand <= item.safetyStock,
   ).length;
 
   const filteredItems = useMemo(() => {
@@ -293,8 +89,7 @@ export default function InventoryPage() {
         category === "All Categories" || item.category === category;
       const matchesStatus =
         status === "All Status" || getStatus(item) === status;
-      const matchesLow =
-        !lowOnly || item.onHand <= item.safetyStock;
+      const matchesLow = !lowOnly || item.onHand <= item.safetyStock;
 
       return (
         matchesSearch &&
@@ -310,7 +105,7 @@ export default function InventoryPage() {
   const currentPage = Math.min(page, totalPages);
   const pageItems = filteredItems.slice(
     (currentPage - 1) * pageSize,
-    currentPage * pageSize
+    currentPage * pageSize,
   );
 
   const warehouseTotals = warehouseNames.map((name) => {
@@ -326,14 +121,14 @@ export default function InventoryPage() {
 
   const maxWarehouseStock = Math.max(
     ...warehouseTotals.map((item) => item.count),
-    1
+    1,
   );
 
   function toggleSelected(id: string) {
     setSelected((previous) =>
       previous.includes(id)
         ? previous.filter((itemId) => itemId !== id)
-        : [...previous, id]
+        : [...previous, id],
     );
   }
 
@@ -344,7 +139,7 @@ export default function InventoryPage() {
     setSelected((previous) =>
       allSelected
         ? previous.filter((id) => !visibleIds.includes(id))
-        : [...new Set([...previous, ...visibleIds])]
+        : [...new Set([...previous, ...visibleIds])],
     );
   }
 
@@ -389,19 +184,19 @@ export default function InventoryPage() {
 
     if (next < adjustItem.reserved) {
       setNotice(
-        `Stock cannot be less than reserved quantity (${adjustItem.reserved}).`
+        `Stock cannot be less than reserved quantity (${adjustItem.reserved}).`,
       );
       return;
     }
 
     setItems((previous) =>
       previous.map((item) =>
-        item.id === adjustItem.id ? { ...item, onHand: next } : item
-      )
+        item.id === adjustItem.id ? { ...item, onHand: next } : item,
+      ),
     );
 
     setNotice(
-      `Stock updated for ${adjustItem.name}. ${current} → ${next} units.`
+      `Stock updated for ${adjustItem.name}. ${current} → ${next} units.`,
     );
     setAdjustItem(null);
     setSelected((previous) => previous.filter((id) => id !== adjustItem.id));
@@ -666,9 +461,7 @@ export default function InventoryPage() {
                         type="checkbox"
                         checked={
                           pageItems.length > 0 &&
-                          pageItems.every((item) =>
-                            selected.includes(item.id)
-                          )
+                          pageItems.every((item) => selected.includes(item.id))
                         }
                         onChange={toggleAllVisible}
                         aria-label="Select all visible products"
@@ -690,10 +483,7 @@ export default function InventoryPage() {
 
                 <tbody className="divide-y divide-slate-100">
                   {pageItems.map((item) => {
-                    const available = Math.max(
-                      0,
-                      item.onHand - item.reserved
-                    );
+                    const available = Math.max(0, item.onHand - item.reserved);
                     const itemStatus = getStatus(item);
 
                     return (
@@ -773,7 +563,7 @@ export default function InventoryPage() {
                               title="More actions"
                               onClick={() =>
                                 setNotice(
-                                  `${item.name}: ${item.onHand} on-hand, ${item.reserved} reserved, ${available} available.`
+                                  `${item.name}: ${item.onHand} on-hand, ${item.reserved} reserved, ${available} available.`,
                                 )
                               }
                               className="rounded-md p-2 text-slate-500 hover:bg-slate-100"
@@ -830,14 +620,8 @@ export default function InventoryPage() {
 
                 {Array.from({ length: totalPages }, (_, index) => index + 1)
                   .slice(
-                    Math.max(
-                      0,
-                      Math.min(currentPage - 3, totalPages - 5)
-                    ),
-                    Math.max(
-                      0,
-                      Math.min(currentPage - 3, totalPages - 5)
-                    ) + 5
+                    Math.max(0, Math.min(currentPage - 3, totalPages - 5)),
+                    Math.max(0, Math.min(currentPage - 3, totalPages - 5)) + 5,
                   )
                   .map((pageNumber) => (
                     <button
@@ -869,50 +653,17 @@ export default function InventoryPage() {
 
           {/* Right sidebar */}
           <aside className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-1">
-            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="mb-5 flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-blue-600" />
-                <h2 className="font-bold text-slate-800">
-                  Inventory Summary
-                </h2>
-              </div>
-
-              <div className="space-y-5">
-                {warehouseTotals.map((row) => (
-                  <div key={row.name}>
-                    <div className="mb-1 flex items-center justify-between gap-2 text-xs">
-                      <span className="text-slate-600">{row.name}</span>
-                      <span className="font-semibold text-slate-700">
-                        {Math.round((row.count / Math.max(totalStock, 1)) * 100)}%
-                      </span>
-                    </div>
-                    <p className="mb-2 text-sm font-bold text-slate-800">
-                      {formatNumber(row.count)}
-                    </p>
-                    <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                      <div
-                        className="h-full rounded-full bg-blue-500 transition-all"
-                        style={{
-                          width: `${(row.count / maxWarehouseStock) * 100}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <p className="mt-5 border-t border-slate-100 pt-3 text-xs text-slate-400">
-                Based on current demo inventory quantities
-              </p>
-            </section>
+            <Summary
+              warehouseTotals={warehouseTotals}
+              totalStock={totalStock}
+              maxWarehouseStock={maxWarehouseStock}
+            />
 
             <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="mb-4 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <CircleAlert className="h-5 w-5 text-rose-500" />
-                  <h2 className="font-bold text-slate-800">
-                    Low Stock Alerts
-                  </h2>
+                  <h2 className="font-bold text-slate-800">Low Stock Alerts</h2>
                 </div>
                 <button
                   onClick={() => {
@@ -927,16 +678,11 @@ export default function InventoryPage() {
 
               <div className="space-y-4">
                 {lowStockItems.length === 0 && (
-                  <p className="text-sm text-slate-500">
-                    No low-stock items.
-                  </p>
+                  <p className="text-sm text-slate-500">No low-stock items.</p>
                 )}
 
                 {lowStockItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center gap-3"
-                  >
+                  <div key={item.id} className="flex items-center gap-3">
                     <img
                       src={item.image}
                       alt={item.name}
@@ -965,9 +711,7 @@ export default function InventoryPage() {
             </section>
 
             <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:col-span-2 2xl:col-span-1">
-              <h2 className="mb-4 font-bold text-slate-800">
-                Quick Actions
-              </h2>
+              <h2 className="mb-4 font-bold text-slate-800">Quick Actions</h2>
 
               <div className="space-y-1">
                 <QuickAction
@@ -998,7 +742,7 @@ export default function InventoryPage() {
                   title="Refresh Inventory"
                   onClick={() => {
                     setNotice(
-                      "Demo inventory is up to date. Connect the inventory API for database refresh."
+                      "Demo inventory is up to date. Connect the inventory API for database refresh.",
                     );
                   }}
                 />
@@ -1015,344 +759,22 @@ export default function InventoryPage() {
 
       {/* Adjust stock modal */}
       {adjustItem && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/50 p-4"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setAdjustItem(null);
-          }}
-        >
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="adjust-stock-title"
-            className="my-auto w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
-          >
-            <div className="mb-5 flex items-start justify-between gap-4">
-              <div>
-                <h2
-                  id="adjust-stock-title"
-                  className="text-xl font-bold text-slate-900"
-                >
-                  Adjust Stock
-                </h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  Update the inventory quantity.
-                </p>
-              </div>
-              <button
-                onClick={() => setAdjustItem(null)}
-                aria-label="Close dialog"
-                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="mb-5 flex items-center gap-3 rounded-xl bg-slate-50 p-3">
-              <img
-                src={adjustItem.image}
-                alt={adjustItem.name}
-                className="h-12 w-12 rounded-lg border border-slate-200 object-cover"
-              />
-              <div>
-                <p className="font-semibold text-slate-800">
-                  {adjustItem.name}
-                </p>
-                <p className="text-xs text-slate-500">
-                  {adjustItem.sku} · {adjustItem.warehouse}
-                </p>
-                <p className="mt-1 text-xs text-slate-600">
-                  Current: <strong>{adjustItem.onHand}</strong> units
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Adjustment Type
-                </label>
-                <select
-                  value={adjustment.type}
-                  onChange={(event) =>
-                    setAdjustment({
-                      ...adjustment,
-                      type: event.target.value as Adjustment["type"],
-                    })
-                  }
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                >
-                  <option value="add">Add Stock</option>
-                  <option value="remove">Remove Stock</option>
-                  <option value="set">Set Exact Quantity</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  {adjustment.type === "set"
-                    ? "New Total Quantity"
-                    : "Quantity"}
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={adjustment.quantity}
-                  onChange={(event) =>
-                    setAdjustment({
-                      ...adjustment,
-                      quantity: event.target.value,
-                    })
-                  }
-                  placeholder="Enter quantity"
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Reason
-                </label>
-                <select
-                  value={adjustment.reason}
-                  onChange={(event) =>
-                    setAdjustment({
-                      ...adjustment,
-                      reason: event.target.value,
-                    })
-                  }
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                >
-                  <option>Stock replenishment</option>
-                  <option>Damaged goods</option>
-                  <option>Stock correction</option>
-                  <option>Returned goods</option>
-                  <option>Other</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                onClick={() => setAdjustItem(null)}
-                className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={saveAdjustment}
-                className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
-              >
-                Save Adjustment
-              </button>
-            </div>
-          </section>
-        </div>
+        <AdjustStockModal
+          adjustItem={adjustItem}
+          adjustment={adjustment}
+          setAdjustment={setAdjustment}
+          setAdjustItem={setAdjustItem}
+          saveAdjustment={saveAdjustment}
+        />
       )}
 
       {/* Stock detail / movement history placeholder */}
       {historyItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="stock-detail-title"
-            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
-          >
-            <div className="mb-5 flex items-start justify-between">
-              <div>
-                <h2
-                  id="stock-detail-title"
-                  className="text-xl font-bold text-slate-900"
-                >
-                  Stock Details
-                </h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  {historyItem.name} · {historyItem.sku}
-                </p>
-              </div>
-              <button
-                onClick={() => setHistoryItem(null)}
-                aria-label="Close details"
-                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <DetailBox label="On Hand" value={historyItem.onHand} />
-              <DetailBox label="Reserved" value={historyItem.reserved} />
-              <DetailBox
-                label="Available"
-                value={Math.max(
-                  0,
-                  historyItem.onHand - historyItem.reserved
-                )}
-              />
-              <DetailBox label="Safety Stock" value={historyItem.safetyStock} />
-            </div>
-
-            <div className="mt-5 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-              <History className="mb-2 h-5 w-5" />
-              This demo shows current stock only. A persistent movement history
-              requires a stock movement API and database collection.
-            </div>
-
-            <button
-              onClick={() => setHistoryItem(null)}
-              className="mt-5 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
-            >
-              Close
-            </button>
-          </section>
-        </div>
+        <MovmentHistory
+          historyItem={historyItem}
+          setHistoryItem={setHistoryItem}
+        />
       )}
     </main>
-  );
-}
-
-function SummaryCard({
-  title,
-  value,
-  subtitle,
-  change,
-  positive,
-  icon,
-  tone,
-}: {
-  title: string;
-  value: number;
-  subtitle: string;
-  change: string;
-  positive: boolean;
-  icon: React.ReactNode;
-  tone: "blue" | "teal" | "orange" | "rose";
-}) {
-  const tones = {
-    blue: "bg-blue-100 text-blue-600",
-    teal: "bg-teal-100 text-teal-600",
-    orange: "bg-orange-100 text-orange-600",
-    rose: "bg-rose-100 text-rose-600",
-  };
-
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-md">
-      <div className="flex items-start justify-between gap-3">
-        <div className={`rounded-full p-3 ${tones[tone]}`}>{icon}</div>
-        <span
-          className={`inline-flex items-center gap-1 text-xs font-semibold ${
-            positive ? "text-emerald-600" : "text-rose-600"
-          }`}
-        >
-          {positive ? (
-            <ArrowUpRight size={15} />
-          ) : (
-            <ArrowDownRight size={15} />
-          )}
-          {change}
-        </span>
-      </div>
-      <p className="mt-4 text-sm text-slate-500">{title}</p>
-      <p className="mt-1 text-3xl font-bold tracking-tight text-slate-900">
-        {formatNumber(value)}
-      </p>
-      <p className="mt-2 text-xs text-slate-400">{subtitle}</p>
-    </div>
-  );
-}
-
-function FilterSelect({
-  value,
-  options,
-  onChange,
-}: {
-  value: string;
-  options: string[];
-  onChange: (value: string) => void;
-}) {
-  return (
-    <div className="relative">
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="w-full appearance-none rounded-lg border border-slate-200 bg-white py-2.5 pl-3 pr-8 text-xs font-medium text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-      >
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
-      <ChevronDown
-        size={14}
-        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
-      />
-    </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    "In Stock": "bg-emerald-50 text-emerald-700 ring-emerald-200",
-    "Low Stock": "bg-amber-50 text-amber-700 ring-amber-200",
-    "Out of Stock": "bg-rose-50 text-rose-700 ring-rose-200",
-  };
-
-  return (
-    <span
-      className={`inline-flex whitespace-nowrap items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ring-inset ${
-        styles[status] ?? "bg-slate-100 text-slate-700 ring-slate-200"
-      }`}
-    >
-      <span className="h-1.5 w-1.5 rounded-full bg-current" />
-      {status}
-    </span>
-  );
-}
-
-function QuickAction({
-  icon,
-  title,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="group flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left transition hover:bg-blue-50"
-    >
-      <span className="rounded-lg bg-blue-50 p-2 text-blue-600 group-hover:bg-blue-100">
-        {icon}
-      </span>
-      <span className="flex-1 text-sm font-medium text-slate-700">
-        {title}
-      </span>
-      <ChevronRight
-        size={16}
-        className="text-slate-400 transition group-hover:translate-x-0.5"
-      />
-    </button>
-  );
-}
-
-function DetailBox({
-  label,
-  value,
-}: {
-  label: string;
-  value: number;
-}) {
-  return (
-    <div className="rounded-xl border border-slate-200 p-4">
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className="mt-2 text-2xl font-bold text-slate-900">
-        {formatNumber(value)}
-      </p>
-    </div>
   );
 }

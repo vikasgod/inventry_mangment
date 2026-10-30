@@ -4,7 +4,7 @@ import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 
 export const metadata: Metadata = {
-  title: "StockPilot | Inventory CRM",
+  title: "StockCRM | Inventory CRM",
   description: "Multi-channel inventory and marketplace management dashboard",
 };
 

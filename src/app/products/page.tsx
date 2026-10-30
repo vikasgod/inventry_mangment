@@ -27,37 +27,8 @@ import {
   X,
 } from "lucide-react";
 import DeleteConfirmModal from "@/components/products/DeleteConfirmModal";
-
-type ProductStatus = "Active" | "Low Stock" | "Out of Stock";
-
-type Product = {
-  id: string;
-  name: string;
-  description: string;
-  sku: string;
-  category: string;
-  variants: number;
-  stock: number;
-  change: number;
-  price: number;
-  status: "Active" | "Low Stock" | "Out of Stock" | "Draft";
-  image: string;
-  channels: string[];
-};
-
-const categories = [
-  "All Categories",
-  "Footwear",
-  "Apparel",
-  "Bags",
-  "Electronics",
-  "Home & Kitchen",
-  "Home Decor",
-  "Sports",
-  "Accessories",
-];
-
-const statuses = ["All Status", "Active", "Low Stock", "Out of Stock"];
+import { StatCard } from "@/components/products/statCard";
+import { categories, Product, ProductStatus, statuses } from "@/components/dataType";
 
 function formatPrice(price: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -111,49 +82,7 @@ function StatusBadge({ status }: { status: ProductStatus }) {
   );
 }
 
-function StatCard({
-  title,
-  value,
-  change,
-  icon: Icon,
-  color,
-  negative = false,
-}: {
-  title: string;
-  value: string;
-  change: string;
-  icon: typeof Package;
-  color: string;
-  negative?: boolean;
-}) {
-  return (
-    <div className="flex min-w-0 items-center gap-3 rounded-xl border border-blue-100 bg-white p-4 shadow-sm shadow-slate-100/70">
-      <div
-        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${color}`}
-      >
-        <Icon size={23} />
-      </div>
 
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-medium text-slate-600">{title}</p>
-        <div className="mt-1 flex items-center gap-2">
-          <p className="text-2xl font-bold tracking-tight text-slate-900">
-            {value}
-          </p>
-          <span
-            className={`flex items-center gap-0.5 whitespace-nowrap text-xs font-semibold ${
-              negative ? "text-red-500" : "text-emerald-600"
-            }`}
-          >
-            {negative ? <TrendingDown size={13} /> : <TrendingUp size={13} />}
-            {change}
-          </span>
-        </div>
-        <p className="mt-1 text-[10px] text-slate-400">vs. last week</p>
-      </div>
-    </div>
-  );
-}
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
