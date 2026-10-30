@@ -1,19 +1,68 @@
-import { Schema, model, models } from "mongoose";
+import { Schema, models, model } from "mongoose";
 
-const ChannelListingSchema = new Schema({
-  sku: { type: String, required: true, uppercase: true, trim: true, index: true },
-  channel: { type: String, enum: ["website", "amazon", "flipkart", "meesho"], required: true },
-  externalSku: { type: String, required: true, trim: true },
-  externalListingId: String,
-  sellingPrice: { type: Number, min: 0, default: 0 },
-  mrp: { type: Number, min: 0, default: 0 },
-  publishedQuantity: { type: Number, min: 0, default: 0 },
-  listingStatus: { type: String, enum: ["not_created", "pending", "active", "inactive", "rejected", "error"], default: "not_created" },
-  syncStatus: { type: String, enum: ["pending", "syncing", "synced", "failed", "manual_required"], default: "pending" },
-  lastSyncedAt: Date,
-  lastError: String,
-}, { timestamps: true });
+const ChannelListingSchema = new Schema(
+  {
+    productId: {
+      type: Schema.Types.ObjectId,
+      ref: "Product",
+      required: true,
+    },
+    variantId: {
+      type: Schema.Types.ObjectId,
+      default: null,
+    },
+    productName: { type: String, required: true },
+    sku: { type: String, required: true },
+    image: { type: String, default: "" },
+    category: { type: String, default: "" },
 
-ChannelListingSchema.index({ channel: 1, externalSku: 1 }, { unique: true });
-ChannelListingSchema.index({ sku: 1, channel: 1 }, { unique: true });
-export default models.ChannelListing || model("ChannelListing", ChannelListingSchema);
+    channel: {
+      type: String,
+      enum: ["WEBSITE", "AMAZON", "FLIPKART", "MEESHO"],
+      required: true,
+    },
+
+    // Future seller API fields
+    sellerAccountId: {
+      type: Schema.Types.ObjectId,
+      ref: "SellerAccount",
+      default: null,
+    },
+    externalListingId: { type: String, default: "" },
+
+    listingId: { type: String, default: "" },
+    listingTitle: { type: String, default: "" },
+    description: { type: String, default: "" },
+
+    sellingPrice: { type: Number, required: true, min: 0 },
+    stock: { type: Number, required: true, min: 0 },
+
+    status: {
+      type: String,
+      enum: ["ACTIVE", "PENDING", "FAILED", "INACTIVE"],
+      default: "PENDING",
+    },
+
+    syncState: {
+      type: String,
+      enum: ["NOT_SYNCED", "PENDING", "SYNCED", "FAILED"],
+      default: "NOT_SYNCED",
+    },
+
+    lastSyncedAt: { type: Date, default: null },
+    lastSyncMessage: { type: String, default: "" },
+  },
+  { timestamps: true }
+);
+
+// One product/variant can have one listing per channel.
+ChannelListingSchema.index(
+  { productId: 1, variantId: 1, channel: 1 },
+  { unique: true }
+);
+
+const ChannelListing =
+  models.ChannelListing ||
+  model("ChannelListing", ChannelListingSchema);
+
+export default ChannelListing;
