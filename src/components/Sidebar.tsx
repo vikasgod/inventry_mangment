@@ -25,7 +25,6 @@ const links = [
   { href: "/orders", label: "Orders", Icon: ShoppingCart },
   { href: "/warehouses", label: "Warehouses", Icon: Warehouse },
   { href: "/integrations", label: "Integrations", Icon: Settings },
-  { href: "/sync-logs", label: "Sync Logs", Icon: Activity },
   { href: "/reports", label: "Reports", Icon: ChartNoAxesCombined },
 ];
 

@@ -1,8 +1,0 @@
- "use client";
-import { useEffect, useState } from "react";
-export default function ListingTable() {
- const [items,setItems]=useState<any[]>([]);const [channel,setChannel]=useState("all");const [err,setErr]=useState("");
- useEffect(()=>{fetch("/api/listings").then(r=>r.json()).then(d=>setItems(d.items||[])).catch(()=>setErr("Unable to load listings."));},[]);
- const visible=channel==="all"?items:items.filter(i=>i.channel===channel);
- return <div className="panel"><div className="filters"><select className="select" style={{maxWidth:200}} value={channel} onChange={e=>setChannel(e.target.value)}><option value="all">All channels</option>{["website","amazon","flipkart","meesho"].map(c=><option key={c}>{c}</option>)}</select><span className="subtitle" style={{alignSelf:"center"}}>{visible.length} listing(s)</span></div>{err&&<div className="notice notice-error">{err}</div>}<div className="table-wrap"><table><thead><tr><th>SKU</th><th>Channel</th><th>External listing ID</th><th>Price</th><th>Quantity</th><th>Listing</th><th>Sync status</th><th>Last sync</th></tr></thead><tbody>{visible.map(i=><tr key={i._id}><td><strong>{i.sku}</strong></td><td>{i.channel}</td><td>{i.externalListingId||"—"}</td><td>₹{Number(i.sellingPrice||0).toLocaleString("en-IN")}</td><td>{i.publishedQuantity}</td><td><span className="badge badge-muted">{i.listingStatus}</span></td><td><span className={`badge ${["failed","manual_required"].includes(i.syncStatus)?"badge-warn":""}`}>{i.syncStatus}</span></td><td>{i.lastSyncedAt?new Date(i.lastSyncedAt).toLocaleString():"—"}</td></tr>)}</tbody></table></div>{!visible.length&&<div className="empty">No listings yet.</div>}</div>;
-}
