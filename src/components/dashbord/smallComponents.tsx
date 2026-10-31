@@ -50,12 +50,5 @@ export function statusStyle(status = "") {
   return "bg-amber-50 text-amber-700";
 }
 
-export const money = (value = 0) =>
-  new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(value);
-
 export const number = (value = 0) => new Intl.NumberFormat("en-IN").format(value);
  

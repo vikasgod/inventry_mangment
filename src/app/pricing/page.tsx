@@ -20,6 +20,10 @@ import {
   Store,
   CalendarDays,
 } from "lucide-react";
+import PricingTab from "@/components/pricing/pricingTab";
+import OfferTab from "@/components/pricing/offerTab";
+import OfferModal from "@/components/pricing/offerModal";
+import PricingModal from "@/components/pricing/pricingModal";
 
 type Channel = "Website" | "Amazon" | "Flipkart" | "Meesho";
 
@@ -49,13 +53,6 @@ type Offer = {
 
 const channels: Channel[] = ["Website", "Amazon", "Flipkart", "Meesho"];
 
-const money = (value: number) =>
-  new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(value);
-
 const inputClass =
   "w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
 
@@ -80,17 +77,18 @@ export default function PricingOffersPage() {
   const [offersTotalPages, setOffersTotalPages] = useState(1);
   const [pricingTotal, setPricingTotal] = useState(0);
   const [offersTotal, setOffersTotal] = useState(0);
-
-  const [offerForm, setOfferForm] = useState({
+  const initialOfferForm = {
     name: "",
-    code: "",
-    type: "Percentage",
+    type: "Percentage" as "Percentage" | "Flat",
     value: "",
-    startDate: "",
-    endDate: "",
+    code: "",
     channel: "All Channels",
     products: "All Products",
-  });
+    startDate: "",
+    endDate: "",
+  };
+
+  const [offerForm, setOfferForm] = useState(initialOfferForm);
 
   const loadPricing = async (page = 1, query = "") => {
     const params = new URLSearchParams({
@@ -435,418 +433,43 @@ export default function PricingOffersPage() {
           <>
             {/* Pricing Table */}
             {tab === "pricing" && (
-              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                <div className="grid grid-cols-1 gap-3 border-b border-slate-100 p-4 lg:grid-cols-2">
-                  <select
-                    value={channelFilter}
-                    onChange={(e) => setChannelFilter(e.target.value)}
-                    className={inputClass}
-                  >
-                    <option>All Channels</option>
-                    {channels.map((c) => (
-                      <option key={c}>{c}</option>
-                    ))}
-                  </select>
-
-                  <div className="relative">
-                    <Search
-                      className="absolute left-3 top-3 text-slate-400"
-                      size={17}
-                    />
-                    <input
-                      value={search}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setSearch(value);
-                        void loadPricing(1, value);
-                      }}
-                      placeholder="Search product or SKU..."
-                      className={`${inputClass} pl-10`}
-                    />
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[1150px] text-left">
-                    <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500">
-                      <tr>
-                        <th className="px-5 py-4">Product</th>
-                        <th className="px-4 py-4">SKU</th>
-                        <th className="px-4 py-4">MRP</th>
-                        <th className="px-4 py-4">Cost Price</th>
-                        <th className="px-4 py-4">Website</th>
-                        <th className="px-4 py-4">Amazon</th>
-                        <th className="px-4 py-4">Flipkart</th>
-                        <th className="px-4 py-4">Meesho</th>
-                        <th className="px-4 py-4">Discount</th>
-                        <th className="px-5 py-4 text-right">Actions</th>
-                      </tr>
-                    </thead>
-
-                    <tbody className="divide-y divide-slate-100">
-                      {products.map((product) => {
-                        const lowestPrice = Math.min(
-                          ...Object.values(product.prices),
-                        );
-                        const discount =
-                          product.mrp > 0
-                            ? Math.round((1 - lowestPrice / product.mrp) * 100)
-                            : 0;
-
-                        return (
-                          <tr key={product._id} className="hover:bg-slate-50">
-                            <td className="px-5 py-4">
-                              <div className="flex items-center gap-3">
-                                <img
-                                  src={product.image}
-                                  alt={product.name}
-                                  className="h-11 w-11 rounded-lg border border-slate-200 object-cover"
-                                />
-                                <div>
-                                  <p className="font-semibold text-slate-900">
-                                    {product.name}
-                                  </p>
-                                  <p className="mt-1 text-xs text-slate-500">
-                                    {product.category}
-                                  </p>
-                                </div>
-                              </div>
-                            </td>
-
-                            <td className="px-4 py-4 text-sm text-slate-600">
-                              {product.sku}
-                            </td>
-                            <td className="px-4 py-4 text-sm text-slate-600">
-                              {money(product.mrp)}
-                            </td>
-                            <td className="px-4 py-4 text-sm text-slate-600">
-                              {money(product.costPrice)}
-                            </td>
-
-                            {channels.map((channel) => (
-                              <td
-                                key={channel}
-                                className="px-4 py-4 text-sm font-semibold text-slate-800"
-                              >
-                                {money(product.prices[channel])}
-                              </td>
-                            ))}
-
-                            <td className="px-4 py-4">
-                              <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
-                                {discount}%
-                              </span>
-                            </td>
-
-                            <td className="px-5 py-4">
-                              <div className="flex justify-end">
-                                <button
-                                  onClick={() =>
-                                    setPricingModal({
-                                      ...product,
-                                      prices: { ...product.prices },
-                                    })
-                                  }
-                                  className="rounded-lg border border-slate-200 p-2 text-blue-600 hover:bg-blue-50"
-                                  title="Edit Pricing"
-                                >
-                                  <Pencil size={16} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-
-                      {products.length === 0 && (
-                        <tr>
-                          <td
-                            colSpan={10}
-                            className="p-10 text-center text-sm text-slate-500"
-                          >
-                            No products found.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-4 py-4">
-                  <p className="text-xs text-slate-500">
-                    Showing{" "}
-                    {pricingTotal === 0
-                      ? 0
-                      : (pricingPage - 1) * ITEMS_PER_PAGE + 1}{" "}
-                    to {Math.min(pricingPage * ITEMS_PER_PAGE, pricingTotal)} of{" "}
-                    {pricingTotal} products
-                  </p>
-
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => void loadPricing(pricingPage - 1, search)}
-                      disabled={pricingPage === 1}
-                      aria-label="Previous page"
-                      className="rounded-md border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-                    >
-                      <ChevronLeft size={16} />
-                    </button>
-
-                    {Array.from(
-                      { length: pricingTotalPages },
-                      (_, index) => index + 1,
-                    )
-                      .slice(
-                        Math.max(
-                          0,
-                          Math.min(pricingPage - 3, pricingTotalPages - 5),
-                        ),
-                        Math.max(
-                          0,
-                          Math.min(pricingPage - 3, pricingTotalPages - 5),
-                        ) + 5,
-                      )
-                      .map((pageNumber) => (
-                        <button
-                          key={pageNumber}
-                          onClick={() => void loadPricing(pageNumber, search)}
-                          className={`min-w-9 rounded-md border px-3 py-2 text-xs font-medium ${
-                            pricingPage === pageNumber
-                              ? "border-blue-600 bg-blue-600 text-white"
-                              : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                          }`}
-                        >
-                          {pageNumber}
-                        </button>
-                      ))}
-
-                    <button
-                      onClick={() => void loadPricing(pricingPage + 1, search)}
-                      disabled={
-                        pricingPage === pricingTotalPages ||
-                        pricingTotalPages === 0
-                      }
-                      aria-label="Next page"
-                      className="rounded-md border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-                    >
-                      <ChevronRight size={16} />
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <PricingTab
+                channelFilter={channelFilter}
+                setChannelFilter={setChannelFilter}
+                inputClass={inputClass}
+                channels={channels}
+                search={search}
+                setSearch={setSearch}
+                loadPricing={loadPricing}
+                products={products}
+                setPricingModal={setPricingModal}
+                pricingTotal={pricingTotal}
+                pricingPage={pricingPage}
+                ITEMS_PER_PAGE={ITEMS_PER_PAGE}
+                pricingTotalPages={pricingTotalPages}
+              />
             )}
 
             {/* Offers Table */}
             {tab === "offers" && (
-              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                <div className="flex flex-col justify-between gap-3 border-b border-slate-100 p-4 md:flex-row">
-                  <div className="grid flex-1 grid-cols-1 gap-3 md:grid-cols-2">
-                    <select
-                      value={channelFilter}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setChannelFilter(value);
-                        void loadOffers(1, search, value, statusFilter);
-                      }}
-                      className={inputClass}
-                    >
-                      <option>All Channels</option>
-                      {channels.map((c) => (
-                        <option key={c}>{c}</option>
-                      ))}
-                    </select>
-
-                    <select
-                      value={statusFilter}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setStatusFilter(value);
-                        void loadOffers(1, search, channelFilter, value);
-                      }}
-                      className={inputClass}
-                    >
-                      <option>All Statuses</option>
-                      <option value="ACTIVE">Active</option>
-                      <option value="SCHEDULED">Scheduled</option>
-                      <option value="EXPIRED">Expired</option>
-                    </select>
-                  </div>
-
-                  <div className="relative md:w-72">
-                    <Search
-                      className="absolute left-3 top-3 text-slate-400"
-                      size={17}
-                    />
-                    <input
-                      value={search}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setSearch(value);
-                        void loadOffers(1, value, channelFilter, statusFilter);
-                      }}
-                      placeholder="Search offer or coupon..."
-                      className={`${inputClass} pl-10`}
-                    />
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[950px] text-left">
-                    <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500">
-                      <tr>
-                        <th className="px-5 py-4">Offer Name</th>
-                        <th className="px-4 py-4">Coupon Code</th>
-                        <th className="px-4 py-4">Discount</th>
-                        <th className="px-4 py-4">Channel</th>
-                        <th className="px-4 py-4">Start Date</th>
-                        <th className="px-4 py-4">End Date</th>
-                        <th className="px-4 py-4">Status</th>
-                        <th className="px-5 py-4 text-right">Actions</th>
-                      </tr>
-                    </thead>
-
-                    <tbody className="divide-y divide-slate-100">
-                      {offers.map((offer) => (
-                        <tr key={offer._id} className="hover:bg-slate-50">
-                          <td className="px-5 py-4">
-                            <p className="font-semibold text-slate-900">
-                              {offer.name}
-                            </p>
-                            <p className="mt-1 text-xs text-slate-500">
-                              {offer.products}
-                            </p>
-                          </td>
-                          <td className="px-4 py-4 text-sm font-semibold text-slate-700">
-                            {offer.code || "—"}
-                          </td>
-                          <td className="px-4 py-4 font-semibold text-slate-800">
-                            {offer.type === "Percentage"
-                              ? `${offer.value}%`
-                              : money(offer.value)}
-                          </td>
-                          <td className="px-4 py-4 text-sm text-slate-600">
-                            {offer.channel}
-                          </td>
-                          <td className="px-4 py-4 text-sm text-slate-600">
-                            {offer.startDate}
-                          </td>
-                          <td className="px-4 py-4 text-sm text-slate-600">
-                            {offer.endDate}
-                          </td>
-                          <td className="px-4 py-4">
-                            {statusBadge(offer.status)}
-                          </td>
-                          <td className="px-5 py-4">
-                            <div className="flex justify-end gap-2">
-                              <button
-                                onClick={() => deleteOffer(offer._id)}
-                                className="rounded-lg border border-slate-200 p-2 text-red-500 hover:bg-red-50"
-                                title="Delete offer"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-
-                      {offers.length === 0 && (
-                        <tr>
-                          <td
-                            colSpan={8}
-                            className="p-10 text-center text-sm text-slate-500"
-                          >
-                            No offers found.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-4 py-4">
-                  <p className="text-xs text-slate-500">
-                    Showing{" "}
-                    {offersTotal === 0
-                      ? 0
-                      : (offersPage - 1) * ITEMS_PER_PAGE + 1}{" "}
-                    to {Math.min(offersPage * ITEMS_PER_PAGE, offersTotal)} of{" "}
-                    {offersTotal} offers
-                  </p>
-
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() =>
-                        void loadOffers(
-                          offersPage - 1,
-                          search,
-                          channelFilter,
-                          statusFilter,
-                        )
-                      }
-                      disabled={offersPage === 1}
-                      aria-label="Previous page"
-                      className="rounded-md border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-                    >
-                      <ChevronLeft size={16} />
-                    </button>
-
-                    {Array.from(
-                      { length: offersTotalPages },
-                      (_, index) => index + 1,
-                    )
-                      .slice(
-                        Math.max(
-                          0,
-                          Math.min(offersPage - 3, offersTotalPages - 5),
-                        ),
-                        Math.max(
-                          0,
-                          Math.min(offersPage - 3, offersTotalPages - 5),
-                        ) + 5,
-                      )
-                      .map((pageNumber) => (
-                        <button
-                          key={pageNumber}
-                          onClick={() =>
-                            void loadOffers(
-                              pageNumber,
-                              search,
-                              channelFilter,
-                              statusFilter,
-                            )
-                          }
-                          className={`min-w-9 rounded-md border px-3 py-2 text-xs font-medium ${
-                            offersPage === pageNumber
-                              ? "border-blue-600 bg-blue-600 text-white"
-                              : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                          }`}
-                        >
-                          {pageNumber}
-                        </button>
-                      ))}
-
-                    <button
-                      onClick={() =>
-                        void loadOffers(
-                          offersPage + 1,
-                          search,
-                          channelFilter,
-                          statusFilter,
-                        )
-                      }
-                      disabled={
-                        offersPage === offersTotalPages ||
-                        offersTotalPages === 0
-                      }
-                      aria-label="Next page"
-                      className="rounded-md border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-                    >
-                      <ChevronRight size={16} />
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <OfferTab
+                channelFilter={channelFilter}
+                setChannelFilter={setChannelFilter}
+                statusFilter={statusFilter}
+                setStatusFilter={setStatusFilter}
+                search={search}
+                setSearch={setSearch}
+                inputClass={inputClass}
+                channels={channels}
+                offers={offers}
+                loadOffers={loadOffers}
+                deleteOffer={deleteOffer}
+                statusBadge={statusBadge}
+                offersTotal={offersTotal}
+                offersPage={offersPage}
+                offersTotalPages={offersTotalPages}
+                ITEMS_PER_PAGE={ITEMS_PER_PAGE}
+              />
             )}
           </>
         )}
@@ -879,292 +502,27 @@ export default function PricingOffersPage() {
 
       {/* Edit Pricing Modal */}
       {pricingModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b p-5">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">
-                  Edit Product Pricing
-                </h2>
-                <p className="mt-1 text-xs text-slate-500">
-                  {pricingModal.name} · {pricingModal.sku}
-                </p>
-              </div>
-              <button
-                onClick={() => setPricingModal(null)}
-                className="rounded-lg p-2 hover:bg-slate-100"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="space-y-5 p-5">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <label className="text-sm font-medium text-slate-700">
-                  MRP
-                  <input
-                    type="number"
-                    min="0"
-                    value={pricingModal.mrp}
-                    onChange={(e) =>
-                      setPricingModal({
-                        ...pricingModal,
-                        mrp: Number(e.target.value),
-                      })
-                    }
-                    className={`${inputClass} mt-2`}
-                  />
-                </label>
-
-                <label className="text-sm font-medium text-slate-700">
-                  Cost Price
-                  <input
-                    type="number"
-                    min="0"
-                    value={pricingModal.costPrice}
-                    onChange={(e) =>
-                      setPricingModal({
-                        ...pricingModal,
-                        costPrice: Number(e.target.value),
-                      })
-                    }
-                    className={`${inputClass} mt-2`}
-                  />
-                </label>
-              </div>
-
-              <div>
-                <h3 className="mb-3 text-sm font-semibold text-slate-800">
-                  Channel-wise Selling Price
-                </h3>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  {channels.map((channel) => (
-                    <label
-                      key={channel}
-                      className="text-sm font-medium text-slate-700"
-                    >
-                      {channel} Price
-                      <input
-                        type="number"
-                        min="0"
-                        value={pricingModal.prices[channel]}
-                        onChange={(e) =>
-                          setPricingModal({
-                            ...pricingModal,
-                            prices: {
-                              ...pricingModal.prices,
-                              [channel]: Number(e.target.value),
-                            },
-                          })
-                        }
-                        className={`${inputClass} mt-2`}
-                      />
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-lg bg-blue-50 p-4">
-                <p className="text-sm text-blue-800">Website Discount</p>
-                <p className="mt-1 text-xl font-bold text-blue-700">
-                  {pricingModal.mrp > 0
-                    ? Math.round(
-                        (1 - pricingModal.prices.Website / pricingModal.mrp) *
-                          100,
-                      )
-                    : 0}
-                  %
-                </p>
-              </div>
-
-              <div className="flex justify-end gap-3 border-t pt-4">
-                <button
-                  onClick={() => setPricingModal(null)}
-                  className="rounded-lg border px-5 py-2.5 text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={() => void savePricing()}
-                  className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-                >
-                  {saving ? "Saving..." : "Save Pricing"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <PricingModal
+          pricingModal={pricingModal}
+          setPricingModal={setPricingModal}
+          channels={channels}
+          inputClass={inputClass}
+          saving={saving}
+          savePricing={savePricing}
+        />
       )}
 
       {/* Create Offer Modal */}
       {offerModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-          <form
-            onSubmit={createOffer}
-            className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-xl bg-white shadow-2xl"
-          >
-            <div className="flex items-center justify-between border-b p-5">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">
-                  Create New Offer
-                </h2>
-                <p className="mt-1 text-xs text-slate-500">
-                  Configure a promotional discount
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setOfferModal(false)}
-                className="rounded-lg p-2 hover:bg-slate-100"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="space-y-4 p-5">
-              <label className="block text-sm font-medium text-slate-700">
-                Offer Name
-                <input
-                  required
-                  value={offerForm.name}
-                  onChange={(e) =>
-                    setOfferForm({ ...offerForm, name: e.target.value })
-                  }
-                  placeholder="e.g. Diwali Sale"
-                  className={`${inputClass} mt-2`}
-                />
-              </label>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <label className="block text-sm font-medium text-slate-700">
-                  Discount Type
-                  <select
-                    value={offerForm.type}
-                    onChange={(e) =>
-                      setOfferForm({ ...offerForm, type: e.target.value })
-                    }
-                    className={`${inputClass} mt-2`}
-                  >
-                    <option value="Percentage">Percentage</option>
-                    <option value="Flat">Flat Amount</option>
-                  </select>
-                </label>
-
-                <label className="block text-sm font-medium text-slate-700">
-                  Discount Value
-                  <input
-                    required
-                    type="number"
-                    min="1"
-                    value={offerForm.value}
-                    onChange={(e) =>
-                      setOfferForm({ ...offerForm, value: e.target.value })
-                    }
-                    placeholder="Enter value"
-                    className={`${inputClass} mt-2`}
-                  />
-                </label>
-              </div>
-
-              <label className="block text-sm font-medium text-slate-700">
-                Coupon Code
-                <input
-                  value={offerForm.code}
-                  onChange={(e) =>
-                    setOfferForm({
-                      ...offerForm,
-                      code: e.target.value.toUpperCase(),
-                    })
-                  }
-                  placeholder="DIWALI20"
-                  className={`${inputClass} mt-2`}
-                />
-              </label>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <label className="block text-sm font-medium text-slate-700">
-                  Applicable Channel
-                  <select
-                    value={offerForm.channel}
-                    onChange={(e) =>
-                      setOfferForm({ ...offerForm, channel: e.target.value })
-                    }
-                    className={`${inputClass} mt-2`}
-                  >
-                    <option>All Channels</option>
-                    {channels.map((c) => (
-                      <option key={c}>{c}</option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="block text-sm font-medium text-slate-700">
-                  Applicable Products
-                  <select
-                    value={offerForm.products}
-                    onChange={(e) =>
-                      setOfferForm({ ...offerForm, products: e.target.value })
-                    }
-                    className={`${inputClass} mt-2`}
-                  >
-                    <option>All Products</option>
-                    <option>Electronics</option>
-                    <option>Sports</option>
-                    <option>Accessories</option>
-                  </select>
-                </label>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <label className="block text-sm font-medium text-slate-700">
-                  Start Date
-                  <input
-                    required
-                    type="date"
-                    value={offerForm.startDate}
-                    onChange={(e) =>
-                      setOfferForm({ ...offerForm, startDate: e.target.value })
-                    }
-                    className={`${inputClass} mt-2`}
-                  />
-                </label>
-
-                <label className="block text-sm font-medium text-slate-700">
-                  End Date
-                  <input
-                    required
-                    type="date"
-                    min={offerForm.startDate || undefined}
-                    value={offerForm.endDate}
-                    onChange={(e) =>
-                      setOfferForm({ ...offerForm, endDate: e.target.value })
-                    }
-                    className={`${inputClass} mt-2`}
-                  />
-                </label>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 border-t p-5">
-              <button
-                type="button"
-                onClick={() => setOfferModal(false)}
-                className="rounded-lg border px-5 py-2.5 text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
-              >
-                {saving ? "Saving..." : "Create Offer"}
-              </button>
-            </div>
-          </form>
-        </div>
+        <OfferModal
+          offerForm={offerForm}
+          setOfferForm={setOfferForm}
+          createOffer={createOffer}
+          setOfferModal={setOfferModal}
+          inputClass={inputClass}
+          channels={channels}
+          saving={saving}
+        />
       )}
     </div>
   );

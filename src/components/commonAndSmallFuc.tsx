@@ -13,3 +13,10 @@ export const formatDate = (date: string) =>
     hour: "2-digit",
     minute: "2-digit",
   });
+
+export const money = (value = 0) =>
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(value);
