@@ -1,8 +1,10 @@
 import React from "react";
-import { money, number } from "./smallComponents";
+import { number } from "./smallComponents";
+import { money } from "../commonAndSmallFuc";
+import { Number } from "mongoose";
 
 function SalesChart({
-  period,
+  peroid,
   loading,
   monthlySales,
   maxSales,
@@ -25,9 +27,9 @@ function SalesChart({
             </p>
           </div>
           <span className="rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700">
-            {period === "30days"
+            {peroid === "30days"
               ? "30 days"
-              : period.replace("months", " months")}
+              : peroid.replace("months", " months")}
           </span>
         </div>
 
@@ -40,7 +42,7 @@ function SalesChart({
         ) : (
           <div className="mt-8">
             <div className="flex h-56 items-end gap-3 border-b border-slate-100 px-1 sm:gap-5">
-              {monthlySales.map((item, index) => {
+              {monthlySales.map((item:any, index:Number) => {
                 const height = Math.max(4, (item.sales / maxSales) * 100);
 
                 return (
@@ -83,10 +85,10 @@ function SalesChart({
           </div>
         ) : (
           <div className="mt-6 space-y-6">
-            {channelSales.map((channel) => {
+            {channelSales.map((channel:any) => {
               const total = Math.max(
                 1,
-                ...channelSales.map((item) => item.sales),
+                ...channelSales.map((item:any) => item.sales),
               );
               const width = Math.min(100, (channel.sales / total) * 100);
 

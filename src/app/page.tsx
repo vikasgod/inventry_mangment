@@ -1,11 +1,12 @@
 "use client";
 
 import { DashboardData } from "@/components/dataType";
-import { money, number, StatCard } from "@/components/dashbord/smallComponents";
+import { number, StatCard } from "@/components/dashbord/smallComponents";
 import { useCallback, useEffect, useState } from "react";
 import RecentOrder from "@/components/dashbord/recentOrder";
 import LowStock from "@/components/dashbord/lowStock";
 import SalesChart from "@/components/dashbord/salesChart";
+import { money } from "@/components/commonAndSmallFuc";
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -141,7 +142,7 @@ export default function DashboardPage() {
 
         {/* Sales chart + channels */}
         <SalesChart
-          period={period}
+          peroid={period}
           loading={loading}
           monthlySales={monthlySales}
           maxSales={maxSales}

@@ -1,5 +1,6 @@
 import React from "react";
-import { money, statusStyle } from "./smallComponents";
+import { statusStyle } from "./smallComponents";
+import { money } from "../commonAndSmallFuc";
 
 function RecentOrder({
   loading,
@@ -57,7 +58,7 @@ function RecentOrder({
                 </td>
               </tr>
             ) : (
-              recentOrders.map((order) => (
+              recentOrders.map((order:any) => (
                 <tr key={order._id} className="hover:bg-slate-50/70">
                   <td className="px-6 py-4 font-semibold text-blue-700">
                     {order.orderNumber ||
