@@ -1,12 +1,17 @@
 
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/db";
+import { authorizeRequest } from "@/lib/auth";
+import mongoose from "mongoose";
+import connectDB from "@/lib/mongodb";
 import StockMovement from "@/models/StockMovement";
 import Product from "@/models/Product";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  const authorization = await authorizeRequest("inventory");
+  if (authorization) return authorization;
+
   try {
     await connectDB();
 
@@ -20,7 +25,15 @@ export async function GET(request: NextRequest) {
 
     const filter: Record<string, unknown> = {};
 
-    if (productId) filter.productId = productId;
+    if (productId) {
+      if (!mongoose.isValidObjectId(productId)) {
+        return NextResponse.json(
+          { success: false, message: "Invalid product ID." },
+          { status: 400 }
+        );
+      }
+      filter.productId = productId;
+    }
     if (warehouse) filter.warehouse = warehouse;
 
     const movements = await StockMovement.find(filter)

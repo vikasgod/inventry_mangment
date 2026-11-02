@@ -25,6 +25,8 @@ type ProductData = {
   price: number;
   compareAtPrice: number;
   costPrice: number;
+  cgstRate: number;
+  sgstRate: number;
   stock: number;
   lowStockThreshold: number;
   images: ProductImage[];
@@ -49,6 +51,8 @@ const emptyForm = {
   price: "",
   compareAtPrice: "",
   costPrice: "",
+  cgstRate: "0",
+  sgstRate: "0",
   stock: "0",
   lowStockThreshold: "5",
 };
@@ -95,6 +99,8 @@ export default function ProductForm({
           price: String(p.price ?? 0),
           compareAtPrice: String(p.compareAtPrice ?? 0),
           costPrice: String(p.costPrice ?? 0),
+          cgstRate: String(p.cgstRate ?? 0),
+          sgstRate: String(p.sgstRate ?? 0),
           stock: String(p.stock ?? 0),
           lowStockThreshold: String(p.lowStockThreshold ?? 5),
         });
@@ -190,16 +196,23 @@ export default function ProductForm({
       ["Price", form.price],
       ["Compare-at price", form.compareAtPrice || "0"],
       ["Cost price", form.costPrice || "0"],
+      ["CGST rate", form.cgstRate || "0"],
+      ["SGST rate", form.sgstRate || "0"],
       ["Stock", form.stock],
       ["Low-stock threshold", form.lowStockThreshold],
     ] as const;
 
     for (const [label, value] of numericFields) {
       const number = Number(value);
-      if (!Number.isFinite(number) || number < 0) {
+      if (!Number.isFinite(number) || number < 0 || (label.endsWith("rate") && number > 100)) {
         setError(`${label} must be a valid non-negative number.`);
         return;
       }
+    }
+
+    if (Number(form.cgstRate || 0) + Number(form.sgstRate || 0) > 100) {
+      setError("Combined CGST and SGST rate cannot exceed 100%.");
+      return;
     }
 
     if (!isEdit && images.length + files.length === 0) {
@@ -243,6 +256,8 @@ export default function ProductForm({
         price: Number(form.price),
         compareAtPrice: Number(form.compareAtPrice || 0),
         costPrice: Number(form.costPrice || 0),
+        cgstRate: Number(form.cgstRate || 0),
+        sgstRate: Number(form.sgstRate || 0),
         stock: Number(form.stock),
         lowStockThreshold: Number(form.lowStockThreshold),
         images: finalImages,
@@ -383,6 +398,12 @@ export default function ProductForm({
               </Field>
               <Field label="Cost Price (₹)">
                 <input type="number" min="0" step="0.01" value={form.costPrice} onChange={(e) => updateField("costPrice", e.target.value)} className={inputClass} />
+              </Field>
+              <Field label="CGST Rate (%)">
+                <input type="number" min="0" max="100" step="0.01" value={form.cgstRate} onChange={(e) => updateField("cgstRate", e.target.value)} className={inputClass} />
+              </Field>
+              <Field label="SGST Rate (%)">
+                <input type="number" min="0" max="100" step="0.01" value={form.sgstRate} onChange={(e) => updateField("sgstRate", e.target.value)} className={inputClass} />
               </Field>
               <Field label="Available Stock *">
                 <input type="number" min="0" required value={form.stock} onChange={(e) => updateField("stock", e.target.value)} className={inputClass} />

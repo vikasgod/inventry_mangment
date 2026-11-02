@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { authorizeRequest } from "@/lib/auth";
 import mongoose from "mongoose";
 import dbConnect from "@/lib/mongodb";
 import SyncJob from "@/models/SyncJob";
@@ -6,6 +7,9 @@ import { enqueueSyncJob } from "@/lib/queue";
 import { apiError } from "@/lib/http";
 
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const authorization = await authorizeRequest("integrations");
+  if (authorization) return authorization;
+
   try {
     const { id } = await params;
     if (!mongoose.isValidObjectId(id)) return NextResponse.json({ error: "Invalid job id" }, { status: 400 });

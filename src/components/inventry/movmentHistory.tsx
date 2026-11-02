@@ -1,13 +1,69 @@
 import { History, X } from "lucide-react";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { DetailBox } from "./smallComponent";
 import { InventoryItem } from "../dataType";
 
+type Movement = {
+  id: string;
+  type: "add" | "remove" | "set";
+  quantity: number;
+  previousStock: number;
+  newStock: number;
+  reason: string;
+  createdAt: string;
+};
+
 interface Props {
-  historyItem: any;
+  historyItem: InventoryItem;
   setHistoryItem: React.Dispatch<React.SetStateAction<InventoryItem | null>>;
 }
+
 function MovmentHistory({ historyItem, setHistoryItem }: Props) {
+  const [movements, setMovements] = useState<Movement[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadMovements() {
+      try {
+        const params = new URLSearchParams({
+          warehouse: historyItem.warehouse,
+        });
+        if (historyItem.productId) {
+          params.set("productId", historyItem.productId);
+        }
+        const response = await fetch(
+          `/api/inventory/movements?${params.toString()}`,
+          { cache: "no-store" }
+        );
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          throw new Error(result.message || "Unable to load stock movements.");
+        }
+
+        if (active) setMovements(result.data);
+      } catch (loadError) {
+        if (active) {
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : "Unable to load stock movements."
+          );
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    void loadMovements();
+    return () => {
+      active = false;
+    };
+  }, [historyItem.productId, historyItem.warehouse]);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
       <section
@@ -47,10 +103,42 @@ function MovmentHistory({ historyItem, setHistoryItem }: Props) {
           <DetailBox label="Safety Stock" value={historyItem.safetyStock} />
         </div>
 
-        <div className="mt-5 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-          <History className="mb-2 h-5 w-5" />
-          This demo shows current stock only. A persistent movement history
-          requires a stock movement API and database collection.
+        <div className="mt-5">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
+            <History size={16} />
+            Recent movements
+          </h3>
+          {loading && (
+            <p className="text-sm text-slate-500">Loading movements...</p>
+          )}
+          {error && (
+            <p role="alert" className="text-sm text-red-600">{error}</p>
+          )}
+          {!loading && !error && movements.length === 0 && (
+            <p className="text-sm text-slate-500">No stock movements yet.</p>
+          )}
+          {!loading && !error && movements.length > 0 && (
+            <ul className="max-h-56 space-y-3 overflow-y-auto">
+              {movements.map((movement) => (
+                <li
+                  key={movement.id}
+                  className="rounded-lg border border-slate-100 p-3 text-sm"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-medium capitalize text-slate-800">
+                      {movement.type} · {movement.quantity} units
+                    </span>
+                    <span className="text-xs text-slate-500">
+                      {new Date(movement.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-600">
+                    {movement.previousStock} → {movement.newStock} · {movement.reason}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         <button

@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   XCircle,
   Globe,
-  Printer,
   Download,
   ArrowLeft,
   UserRound,
@@ -19,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { StatCard } from "@/components/order/statCard";
+import DownloadInvoiceButton from "@/components/order/DownloadInvoiceButton";
 import {
   emptyStats,
   Order,
@@ -435,13 +435,7 @@ export default function OrdersPage() {
               </div>
 
               <div className="flex flex-wrap gap-2 print:hidden">
-                <button
-                  onClick={() => window.print()}
-                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white"
-                >
-                  <Printer size={14} />
-                  Print Invoice
-                </button>
+                <DownloadInvoiceButton order={selected} onError={setError} />
 
                 <button
                   onClick={exportCSV}
@@ -469,7 +463,14 @@ export default function OrdersPage() {
                   <Info label="Name" value={selected.customer.name ?? ""} />
                   <Info label="Phone" value={selected.customer.phone} />
                   <Info label="Email" value={selected.customer.email} />
-                  <Info label="Address" value={selected.customer.address} />
+                  <Info
+                    label="Billing Address"
+                    value={selected.customer.billingAddress || selected.customer.address}
+                  />
+                  <Info
+                    label="Shipping Address"
+                    value={selected.customer.shippingAddress || selected.customer.address}
+                  />
                 </Panel>
 
                 <Panel

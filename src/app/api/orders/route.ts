@@ -1,6 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
+import { authorizeRequest } from "@/lib/auth";
+import mongoose from "mongoose";
 import connectDB from "@/lib/mongodb";
 import Order from "@/models/Order";
+import Product from "@/models/Product";
+import Warehouse from "@/models/Warehouse";
+import {
+  consumeOrderStock,
+  isTransactionUnsupportedError,
+  OrderStockError,
+  releaseOrderStock,
+  rollbackOrderStockConsumption,
+  reserveOrderStock,
+  type StockAllocation,
+  type StockConsumption,
+} from "@/lib/order-stock";
+
+type ResolvedOrderItem = {
+  productId: mongoose.Types.ObjectId;
+  name: string;
+  sku: string;
+  image: string;
+  variant: string;
+  price: number;
+  quantity: number;
+  total: number;
+  cgstRate: number;
+  sgstRate: number;
+};
+
+type ProductSnapshot = {
+  _id: mongoose.Types.ObjectId;
+  name: string;
+  sku: string;
+  images?: { url: string }[];
+  cgstRate?: number;
+  sgstRate?: number;
+};
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +56,9 @@ const channels = [
 ];
 
 export async function GET(request: NextRequest) {
+  const authorization = await authorizeRequest("orders");
+  if (authorization) return authorization;
+
   try {
     await connectDB();
 
@@ -245,12 +284,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const items = body.items.map((item: any) => {
+    const requestedItems = body.items.map((item: any) => {
+      if (!item || typeof item !== "object") {
+        throw new Error("INVALID_ORDER_ITEM");
+      }
+
       const price = Number(item.price);
       const quantity = Number(item.quantity);
 
       if (
-        !item.name ||
         !Number.isFinite(price) ||
         price < 0 ||
         !Number.isInteger(quantity) ||
@@ -259,37 +301,17 @@ export async function POST(request: NextRequest) {
         throw new Error("INVALID_ORDER_ITEM");
       }
 
-      return {
-        ...(item.productId
-          ? { productId: item.productId }
-          : {}),
-        name: item.name,
-        sku: item.sku || "",
-        image: item.image || "",
-        variant: item.variant || "",
-        price,
-        quantity,
-        total: price * quantity,
-      };
+      return { item, price, quantity };
     });
-
-    // Calculate subtotal
-    const subtotal = items.reduce(
-      (sum: number, item: { total: number }) =>
-        sum + item.total,
-      0
-    );
 
     const shipping = Number(body.shipping ?? 0);
     const discount = Number(body.discount ?? 0);
 
-    // Validate shipping and discount
     if (
       !Number.isFinite(shipping) ||
       shipping < 0 ||
       !Number.isFinite(discount) ||
-      discount < 0 ||
-      discount > subtotal + shipping
+      discount < 0
     ) {
       return NextResponse.json(
         {
@@ -300,9 +322,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const totalAmount = subtotal + shipping - discount;
-
-    // Validate status
     const status = body.status || "Pending";
 
     if (!allowedStatuses.includes(status)) {
@@ -315,50 +334,165 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Handle external order ID
+    const warehouseName =
+      typeof body.warehouse === "string" && body.warehouse.trim()
+        ? body.warehouse.trim()
+        : process.env.DEFAULT_ORDER_WAREHOUSE?.trim() || "";
+
+    if (!warehouseName) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Warehouse is required. Set DEFAULT_ORDER_WAREHOUSE or include warehouse in the order.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const warehouse = await Warehouse.findOne({
+      name: warehouseName,
+      status: "Active",
+    }).lean();
+
+    if (!warehouse) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Active warehouse "${warehouseName}" was not found.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    const items: ResolvedOrderItem[] = [];
+    const quantitiesByProduct = new Map<string, number>();
+
+    for (const { item, price, quantity } of requestedItems) {
+      const productQuery = item.productId
+        ? mongoose.isValidObjectId(item.productId)
+          ? { _id: item.productId, isArchived: { $ne: true } }
+          : null
+        : typeof item.sku === "string" && item.sku.trim()
+          ? {
+              sku: item.sku.trim().toUpperCase(),
+              isArchived: { $ne: true },
+            }
+          : null;
+
+      if (!productQuery) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "Each order item must reference an active product using productId or SKU.",
+          },
+          { status: 400 }
+        );
+      }
+
+      const product = await Product.findOne(productQuery)
+        .lean<ProductSnapshot>()
+        .exec();
+
+      if (!product) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `Product ${item.sku || item.productId} was not found.`,
+          },
+          { status: 400 }
+        );
+      }
+
+      const productId = String(product._id);
+      quantitiesByProduct.set(
+        productId,
+        (quantitiesByProduct.get(productId) || 0) + quantity
+      );
+
+      items.push({
+        productId: product._id,
+        name: product.name,
+        sku: product.sku,
+        image:
+          typeof item.image === "string"
+            ? item.image
+            : product.images?.[0]?.url || "",
+        variant: typeof item.variant === "string" ? item.variant : "",
+        price,
+        quantity,
+        total: price * quantity,
+        cgstRate: Number(product.cgstRate ?? 0),
+        sgstRate: Number(product.sgstRate ?? 0),
+      });
+    }
+
+    const subtotal = items.reduce((sum, item) => sum + item.total, 0);
+
+    if (discount > subtotal + shipping) {
+      return NextResponse.json(
+        { success: false, message: "Invalid shipping or discount amount" },
+        { status: 400 }
+      );
+    }
+
+    const totalAmount = subtotal + shipping - discount;
+    const allocations: StockAllocation[] = [...quantitiesByProduct].map(
+      ([productId, quantity]) => ({
+        productId: new mongoose.Types.ObjectId(productId),
+        quantity,
+      })
+    );
+
     const externalOrderId =
       typeof body.externalOrderId === "string"
         ? body.externalOrderId.trim()
         : "";
 
-    // Create order
-    const order = await Order.create({
-      orderNumber:
-        body.orderNumber || `ORD-${Date.now()}`,
+    const inventoryStatus =
+      status === "Cancelled"
+        ? "released"
+        : status === "Shipped" || status === "Delivered"
+          ? "deducted"
+          : "reserved";
 
+    const orderData = {
+      orderNumber: body.orderNumber || `ORD-${Date.now()}`,
       channel: body.channel,
-
-      ...(externalOrderId
-        ? { externalOrderId }
-        : {}),
-
-      customer: body.customer,
-
+      warehouse: warehouseName,
+      stockAllocations:
+        inventoryStatus === "released" ? [] : allocations,
+      inventoryStatus,
+      ...(externalOrderId ? { externalOrderId } : {}),
+      customer: {
+        ...body.customer,
+        billingAddress:
+          typeof body.customer.billingAddress === "string"
+            ? body.customer.billingAddress
+            : body.customer.address || "",
+        shippingAddress:
+          typeof body.customer.shippingAddress === "string"
+            ? body.customer.shippingAddress
+            : body.customer.address || "",
+      },
       items,
-
       subtotal,
       shipping,
       discount,
       totalAmount,
-
       status,
-
       paymentMethod:
         body.paymentMethod || "Cash on Delivery (COD)",
-
       paymentStatus:
         body.paymentStatus || "Pending Payment",
-
       shippingMethod:
         body.shippingMethod ||
         "Standard Delivery (3-5 days)",
-
       trackingNumber: body.trackingNumber || "",
-
       placedAt: body.placedAt
         ? new Date(body.placedAt)
         : new Date(),
-
       statusHistory: [
         {
           status,
@@ -366,7 +500,72 @@ export async function POST(request: NextRequest) {
           at: new Date(),
         },
       ],
-    });
+    };
+
+    const session = await mongoose.startSession();
+    let order;
+    let transactionUnsupported = false;
+
+    try {
+      await session.withTransaction(async () => {
+        if (inventoryStatus !== "released") {
+          await reserveOrderStock(allocations, warehouseName, session);
+
+          if (inventoryStatus === "deducted") {
+            await consumeOrderStock(allocations, warehouseName, session);
+          }
+        }
+
+        const createdOrders = await Order.create([orderData], { session });
+        order = createdOrders[0];
+      });
+    } catch (error) {
+      if (!isTransactionUnsupportedError(error)) throw error;
+      transactionUnsupported = true;
+    } finally {
+      await session.endSession();
+    }
+
+    if (transactionUnsupported) {
+      let reservationCreated = false;
+      let fallbackOrder: InstanceType<typeof Order> | undefined;
+      let consumptions: StockConsumption[] = [];
+
+      try {
+        if (inventoryStatus !== "released") {
+          await reserveOrderStock(allocations, warehouseName);
+          reservationCreated = true;
+        }
+
+        fallbackOrder = await Order.create({
+          ...orderData,
+          inventoryStatus:
+            inventoryStatus === "deducted" ? "reserved" : inventoryStatus,
+        });
+
+        if (inventoryStatus === "deducted") {
+          consumptions = await consumeOrderStock(
+            allocations,
+            warehouseName
+          );
+          fallbackOrder.inventoryStatus = "deducted";
+          await fallbackOrder.save();
+        }
+
+        order = fallbackOrder;
+      } catch (error) {
+        if (consumptions.length > 0) {
+          await rollbackOrderStockConsumption(consumptions, true);
+        }
+        if (fallbackOrder) {
+          await Order.deleteOne({ _id: fallbackOrder._id });
+        }
+        if (reservationCreated) {
+          await releaseOrderStock(allocations, warehouseName);
+        }
+        throw error;
+      }
+    }
 
     return NextResponse.json(
       {
@@ -392,6 +591,13 @@ export async function POST(request: NextRequest) {
             "Each item needs a name, valid price and quantity",
         },
         { status: 400 }
+      );
+    }
+
+    if (error instanceof OrderStockError) {
+      return NextResponse.json(
+        { success: false, message: error.message },
+        { status: 409 }
       );
     }
 
@@ -456,4 +662,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

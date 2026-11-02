@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { authorizeRequest } from "@/lib/auth";
 import mongoose from "mongoose";
 import connectDB from "@/lib/mongodb";
 import Integration from "@/models/Integration";
@@ -13,6 +14,9 @@ export async function GET(
   request: NextRequest,
   { params }: Context
 ) {
+  const authorization = await authorizeRequest("warehouses");
+  if (authorization) return authorization;
+
   try {
     await connectDB();
 
@@ -50,6 +54,9 @@ export async function POST(
   request: NextRequest,
   { params }: Context
 ) {
+  const authorization = await authorizeRequest("warehouses");
+  if (authorization) return authorization;
+
   try {
     await connectDB();
 

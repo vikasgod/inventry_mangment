@@ -1,6 +1,4 @@
 import {
-  ArrowDownRight,
-  ArrowUpRight,
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
@@ -18,8 +16,8 @@ export function SummaryCard({
   title: string;
   value: number;
   subtitle: string;
-  change: string;
-  positive: boolean;
+  change?: string;
+  positive?: boolean;
   icon: React.ReactNode;
   tone: "blue" | "teal" | "orange" | "rose";
 }) {
@@ -34,14 +32,19 @@ export function SummaryCard({
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-md">
       <div className="flex items-start justify-between gap-3">
         <div className={`rounded-full p-3 ${tones[tone]}`}>{icon}</div>
-        <span
-          className={`inline-flex items-center gap-1 text-xs font-semibold ${
-            positive ? "text-emerald-600" : "text-rose-600"
-          }`}
-        >
-          {positive ? <ArrowUpRight size={15} /> : <ArrowDownRight size={15} />}
-          {change}
-        </span>
+        {change && (
+          <span
+            className={`text-xs font-semibold ${
+              positive === undefined
+                ? "text-slate-500"
+                : positive
+                  ? "text-emerald-600"
+                  : "text-rose-600"
+            }`}
+          >
+            {change}
+          </span>
+        )}
       </div>
       <p className="mt-4 text-sm text-slate-500">{title}</p>
       <p className="mt-1 text-3xl font-bold tracking-tight text-slate-900">

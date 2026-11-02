@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { authorizeRequest } from "@/lib/auth";
 import dbConnect from "@/lib/mongodb";
 import SyncJob from "@/models/SyncJob";
 import { apiError } from "@/lib/http";
 
 export async function GET(req: NextRequest) {
+  const authorization = await authorizeRequest("integrations");
+  if (authorization) return authorization;
+
   try {
     await dbConnect();
     const { searchParams } = new URL(req.url);

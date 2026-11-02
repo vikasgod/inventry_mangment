@@ -9,6 +9,7 @@ interface Props {
   setAdjustment: React.Dispatch<React.SetStateAction<Adjustment>>;
   setAdjustItem: React.Dispatch<React.SetStateAction<InventoryItem | null>>;
   saveAdjustment: () => void;
+  saving: boolean;
 }
 
 function AdjustStockModal({
@@ -17,6 +18,7 @@ function AdjustStockModal({
   setAdjustment,
   setAdjustItem,
   saveAdjustment,
+  saving,
 }: Props) {
   return (
     <div
@@ -52,11 +54,17 @@ function AdjustStockModal({
         </div>
 
         <div className="mb-5 flex items-center gap-3 rounded-xl bg-slate-50 p-3">
-          <img
-            src={adjustItem.image}
-            alt={adjustItem.name}
-            className="h-12 w-12 rounded-lg object-cover"
-          />
+          {adjustItem.image ? (
+            <img
+              src={adjustItem.image}
+              alt={adjustItem.name}
+              className="h-12 w-12 rounded-lg object-cover"
+            />
+          ) : (
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-200 text-xs text-slate-500">
+              No image
+            </div>
+          )}
 
           <div>
             <p className="font-semibold">{adjustItem.name}</p>
@@ -131,9 +139,22 @@ function AdjustStockModal({
         </div>
 
         <div className="mt-6 flex justify-end gap-3">
-          <button onClick={() => setAdjustItem(null)}>Cancel</button>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => setAdjustItem(null)}
+          >
+            Cancel
+          </button>
 
-          <button onClick={saveAdjustment}>Save Adjustment</button>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={saveAdjustment}
+            className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+          >
+            {saving ? "Saving..." : "Save Adjustment"}
+          </button>
         </div>
       </section>
     </div>

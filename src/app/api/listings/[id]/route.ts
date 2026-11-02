@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { authorizeRequest } from "@/lib/auth";
 import mongoose from "mongoose";
 import connectDB from "@/lib/mongodb";
 import ChannelListing from "@/models/ChannelListing";
@@ -9,6 +10,9 @@ export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  const authorization = await authorizeRequest("listings");
+  if (authorization) return authorization;
+
   try {
     await connectDB();
 
@@ -95,6 +99,9 @@ export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  const authorization = await authorizeRequest("listings");
+  if (authorization) return authorization;
+
   try {
     await connectDB();
 

@@ -43,7 +43,7 @@ function Summary({
       </div>
 
       <p className="mt-5 border-t border-slate-100 pt-3 text-xs text-slate-400">
-        Based on current demo inventory quantities
+        Based on current warehouse inventory quantities
       </p>
     </section>
   );

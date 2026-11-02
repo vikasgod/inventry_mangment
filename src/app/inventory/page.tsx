@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Archive,
   BarChart3,
@@ -22,9 +22,7 @@ import {
   Adjustment,
   categories,
   formatNumber,
-  initialInventory,
   InventoryItem,
-  warehouseNames,
 } from "@/components/dataType";
 import {
   DetailBox,
@@ -44,7 +42,8 @@ function getStatus(item: InventoryItem) {
 }
 
 export default function InventoryPage() {
-  const [items, setItems] = useState(initialInventory);
+  const [items, setItems] = useState<InventoryItem[]>([]);
+  const [warehouseOptions, setWarehouseOptions] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [warehouse, setWarehouse] = useState("All Warehouses");
   const [category, setCategory] = useState("All Categories");
@@ -61,8 +60,114 @@ export default function InventoryPage() {
   });
   const [notice, setNotice] = useState("");
   const [historyItem, setHistoryItem] = useState<InventoryItem | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [savingAdjustment, setSavingAdjustment] = useState(false);
+  const [error, setError] = useState("");
 
   const pageSize = 10;
+
+  const fetchInventory = useCallback(async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const [inventoryResponse, productsResponse, warehousesResponse] =
+        await Promise.all([
+          fetch("/api/inventory", { cache: "no-store" }),
+          fetch("/api/products?limit=100", { cache: "no-store" }),
+          fetch("/api/warehouses?limit=100", { cache: "no-store" }),
+        ]);
+      const [inventoryResult, productsResult, warehousesResult] =
+        await Promise.all([
+          inventoryResponse.json(),
+          productsResponse.json(),
+          warehousesResponse.json(),
+        ]);
+
+      if (!inventoryResponse.ok || !inventoryResult.success) {
+        throw new Error(
+          inventoryResult.message || "Unable to load inventory."
+        );
+      }
+      if (!productsResponse.ok || !Array.isArray(productsResult.products)) {
+        throw new Error(productsResult.message || "Unable to load products.");
+      }
+      if (!warehousesResponse.ok || !warehousesResult.success) {
+        throw new Error(
+          warehousesResult.message || "Unable to load warehouses."
+        );
+      }
+
+      const records: InventoryItem[] = inventoryResult.data.map(
+        (record: {
+          id: string;
+          productId: string;
+          name: string;
+          sku: string;
+          category: string;
+          warehouse: string;
+          onHand: number;
+          reserved: number;
+          safetyStock: number;
+          price: number;
+          image: string;
+        }) => ({
+          ...record,
+          variant: "",
+          color: "",
+        })
+      );
+      const activeWarehouses = warehousesResult.data
+        .filter((entry: { status: string }) => entry.status === "Active")
+        .map((entry: { name: string }) => entry.name);
+      const existingRows = new Set(
+        records.map((record) => `${record.productId}:${record.warehouse}`)
+      );
+
+      for (const product of productsResult.products) {
+        for (const warehouseName of activeWarehouses) {
+          const key = `${product._id}:${warehouseName}`;
+          if (existingRows.has(key)) continue;
+
+          records.push({
+            id: `new:${key}`,
+            productId: product._id,
+            name: product.name,
+            sku: product.sku,
+            category: product.category || "Uncategorized",
+            warehouse: warehouseName,
+            variant: "",
+            color: "",
+            onHand: 0,
+            reserved: 0,
+            safetyStock: product.lowStockThreshold ?? 10,
+            price: product.price ?? 0,
+            image: product.images?.[0]?.url || "",
+          });
+        }
+      }
+
+      setItems(records);
+      setWarehouseOptions([
+        ...new Set([
+          ...activeWarehouses,
+          ...records.map((record) => record.warehouse),
+        ]),
+      ]);
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Unable to load inventory."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchInventory();
+  }, [fetchInventory]);
 
   const totalStock = items.reduce((sum, item) => sum + item.onHand, 0);
   const reservedStock = items.reduce((sum, item) => sum + item.reserved, 0);
@@ -108,16 +213,12 @@ export default function InventoryPage() {
     currentPage * pageSize,
   );
 
-  const warehouseTotals = warehouseNames.map((name) => {
-    const count =
-      name === "Other"
-        ? 0
-        : items
-            .filter((item) => item.warehouse === name)
-            .reduce((sum, item) => sum + item.onHand, 0);
-
-    return { name, count };
-  });
+  const warehouseTotals = warehouseOptions.map((name) => ({
+    name,
+    count: items
+      .filter((item) => item.warehouse === name)
+      .reduce((sum, item) => sum + item.onHand, 0),
+  }));
 
   const maxWarehouseStock = Math.max(
     ...warehouseTotals.map((item) => item.count),
@@ -160,7 +261,7 @@ export default function InventoryPage() {
     });
   }
 
-  function saveAdjustment() {
+  async function saveAdjustment() {
     const quantity = Number(adjustment.quantity);
 
     if (!Number.isInteger(quantity) || quantity < 0) {
@@ -175,31 +276,48 @@ export default function InventoryPage() {
 
     if (!adjustItem) return;
 
-    const current = adjustItem.onHand;
-    let next = current;
-
-    if (adjustment.type === "add") next = current + quantity;
-    if (adjustment.type === "remove") next = current - quantity;
-    if (adjustment.type === "set") next = quantity;
-
-    if (next < adjustItem.reserved) {
-      setNotice(
-        `Stock cannot be less than reserved quantity (${adjustItem.reserved}).`,
-      );
+    if (!adjustItem.productId) {
+      setNotice("This inventory row is missing its product reference.");
       return;
     }
 
-    setItems((previous) =>
-      previous.map((item) =>
-        item.id === adjustItem.id ? { ...item, onHand: next } : item,
-      ),
-    );
+    setSavingAdjustment(true);
+    setNotice("");
+    setError("");
 
-    setNotice(
-      `Stock updated for ${adjustItem.name}. ${current} → ${next} units.`,
-    );
-    setAdjustItem(null);
-    setSelected((previous) => previous.filter((id) => id !== adjustItem.id));
+    try {
+      const response = await fetch("/api/inventory/adjust", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: adjustItem.productId,
+          warehouse: adjustItem.warehouse,
+          type: adjustment.type,
+          quantity,
+          reason: adjustment.reason,
+        }),
+      });
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Stock adjustment failed.");
+      }
+
+      setNotice(result.message);
+      setAdjustItem(null);
+      setSelected((previous) =>
+        previous.filter((id) => id !== adjustItem.id)
+      );
+      await fetchInventory();
+    } catch (saveError) {
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : "Unable to save stock adjustment."
+      );
+    } finally {
+      setSavingAdjustment(false);
+    }
   }
 
   function exportCsv() {
@@ -295,6 +413,15 @@ export default function InventoryPage() {
           </div>
         </div>
 
+        {error && (
+          <div
+            className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+            role="alert"
+          >
+            {error}
+          </div>
+        )}
+
         {notice && (
           <div
             className="mb-4 flex items-start justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800"
@@ -316,8 +443,7 @@ export default function InventoryPage() {
             title="Total Stock"
             value={totalStock}
             subtitle="Across all warehouses"
-            change="+8%"
-            positive
+            change="On hand"
             icon={<Package size={23} />}
             tone="blue"
           />
@@ -325,8 +451,7 @@ export default function InventoryPage() {
             title="Available Stock"
             value={availableStock}
             subtitle="Ready for sale"
-            change="+12%"
-            positive
+            change="On hand − reserved"
             icon={<Archive size={23} />}
             tone="teal"
           />
@@ -334,8 +459,7 @@ export default function InventoryPage() {
             title="Reserved Stock"
             value={reservedStock}
             subtitle="In orders / pending"
-            change="+5%"
-            positive
+            change="Order reservations"
             icon={<Package size={23} />}
             tone="orange"
           />
@@ -343,8 +467,7 @@ export default function InventoryPage() {
             title="Low Stock Items"
             value={lowStockCount}
             subtitle="At or below safety stock"
-            change="-3%"
-            positive={false}
+            change="Needs attention"
             icon={<CircleAlert size={23} />}
             tone="rose"
           />
@@ -362,12 +485,7 @@ export default function InventoryPage() {
                     setWarehouse(value);
                     setPage(1);
                   }}
-                  options={[
-                    "All Warehouses",
-                    "Main Warehouse",
-                    "Delhi Warehouse",
-                    "Mumbai Warehouse",
-                  ]}
+                  options={["All Warehouses", ...warehouseOptions]}
                 />
                 <FilterSelect
                   value={category}
@@ -482,7 +600,7 @@ export default function InventoryPage() {
                 </thead>
 
                 <tbody className="divide-y divide-slate-100">
-                  {pageItems.map((item) => {
+                  {!loading && pageItems.map((item) => {
                     const available = Math.max(0, item.onHand - item.reserved);
                     const itemStatus = getStatus(item);
 
@@ -576,7 +694,15 @@ export default function InventoryPage() {
                     );
                   })}
 
-                  {pageItems.length === 0 && (
+                  {loading && (
+                    <tr>
+                      <td colSpan={11} className="px-6 py-16 text-center text-sm text-slate-500">
+                        Loading inventory...
+                      </td>
+                    </tr>
+                  )}
+
+                  {!loading && pageItems.length === 0 && (
                     <tr>
                       <td
                         colSpan={11}
@@ -740,11 +866,7 @@ export default function InventoryPage() {
                 <QuickAction
                   icon={<RefreshCw size={18} />}
                   title="Refresh Inventory"
-                  onClick={() => {
-                    setNotice(
-                      "Demo inventory is up to date. Connect the inventory API for database refresh.",
-                    );
-                  }}
+                  onClick={() => void fetchInventory()}
                 />
                 <QuickAction
                   icon={<Download size={18} />}
@@ -765,6 +887,7 @@ export default function InventoryPage() {
           setAdjustment={setAdjustment}
           setAdjustItem={setAdjustItem}
           saveAdjustment={saveAdjustment}
+          saving={savingAdjustment}
         />
       )}
 

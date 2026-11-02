@@ -1,5 +1,6 @@
 
 import { NextRequest, NextResponse } from "next/server";
+import { authorizeRequest } from "@/lib/auth";
 import dbConnect from "@/lib/mongodb";
 import Product from "@/models/Product";
 import Order from "@/models/Order";
@@ -20,6 +21,9 @@ const EXCLUDED_REVENUE_STATUSES = [
 ];
 
 export async function GET(request: NextRequest) {
+  const authorization = await authorizeRequest("dashboard");
+  if (authorization) return authorization;
+
     try {
         await dbConnect();
 

@@ -1,12 +1,17 @@
 
 import { NextRequest, NextResponse } from "next/server";
+import { authorizeRequest } from "@/lib/auth";
 import mongoose from "mongoose";
-import { connectDB } from "@/lib/db";
+import connectDB from "@/lib/mongodb";
 import Inventory from "@/models/Inventory";
 import StockMovement from "@/models/StockMovement";
 import Product from "@/models/Product";
+import Warehouse from "@/models/Warehouse";
 
 export async function POST(request: NextRequest) {
+  const authorization = await authorizeRequest("inventory");
+  if (authorization) return authorization;
+
   try {
     await connectDB();
 
@@ -28,7 +33,8 @@ export async function POST(request: NextRequest) {
       !["add", "remove", "set"].includes(type) ||
       !Number.isInteger(quantity) ||
       quantity < 0 ||
-      !reason?.trim()
+      typeof reason !== "string" ||
+      !reason.trim()
     ) {
       return NextResponse.json(
         {
@@ -64,50 +70,117 @@ export async function POST(request: NextRequest) {
 
     const normalizedWarehouse = warehouse.trim();
 
-    let inventory = await Inventory.findOne({
-      productId,
-      warehouse: normalizedWarehouse,
-    });
+    const warehouseRecord = await Warehouse.findOne({
+      name: normalizedWarehouse,
+      status: "Active",
+    }).lean();
 
-    if (!inventory) {
-      inventory = await Inventory.create({
-        productId,
-        warehouse: normalizedWarehouse,
-        onHand: 0,
-        reserved: 0,
-        safetyStock: product.lowStockThreshold ?? 10,
-      });
-    }
-
-    const previousStock = inventory.onHand;
-    let newStock = previousStock;
-
-    if (type === "add") newStock += quantity;
-    if (type === "remove") newStock -= quantity;
-    if (type === "set") newStock = quantity;
-
-    if (newStock < inventory.reserved) {
+    if (!warehouseRecord) {
       return NextResponse.json(
-        {
-          success: false,
-          message: `Stock cannot be lower than reserved quantity (${inventory.reserved}).`,
-        },
-        { status: 400 }
+        { success: false, message: "Active warehouse not found." },
+        { status: 404 }
       );
     }
 
-    const difference = newStock - previousStock;
+    const inventoryFilter = {
+      productId: product._id,
+      warehouse: normalizedWarehouse,
+    };
+    let inventory = await Inventory.findOne(inventoryFilter);
 
-    // Update the warehouse-level stock.
-    inventory.onHand = newStock;
-    await inventory.save();
+    if (!inventory) {
+      try {
+        inventory = await Inventory.create({
+          ...inventoryFilter,
+          onHand: 0,
+          reserved: 0,
+          safetyStock: product.lowStockThreshold ?? 10,
+        });
+      } catch (error) {
+        if ((error as { code?: number }).code !== 11000) throw error;
+
+        inventory = await Inventory.findOne(inventoryFilter);
+
+        if (!inventory) {
+          console.error(
+            "Inventory creation hit a duplicate-key index without a matching product/warehouse record:",
+            error
+          );
+          return NextResponse.json(
+            {
+              success: false,
+              message:
+                "The database rejected this warehouse allocation because of a conflicting unique index. Check the Inventory collection indexes; only the productId + warehouse pair should be unique.",
+            },
+            { status: 409 }
+          );
+        }
+      }
+    }
+
+    if (!inventory) {
+      throw new Error(
+        "Inventory record could not be loaded or created for this product and warehouse."
+      );
+    }
+
+    const update =
+      type === "add"
+        ? { $inc: { onHand: quantity } }
+        : type === "remove"
+          ? { $inc: { onHand: -quantity } }
+          : { $set: { onHand: quantity } };
+
+    const stockFilter: Record<string, unknown> = { _id: inventory._id };
+
+    if (type === "remove") {
+      stockFilter.$expr = {
+        $and: [
+          { $gte: ["$onHand", quantity] },
+          {
+            $gte: [
+              { $subtract: ["$onHand", quantity] },
+              "$reserved",
+            ],
+          },
+        ],
+      };
+    } else if (type === "set") {
+      stockFilter.reserved = { $lte: quantity };
+    }
+
+    const previousInventory = await Inventory.findOneAndUpdate(
+      stockFilter,
+      update,
+      { new: false }
+    );
+
+    if (!previousInventory) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            type === "set"
+              ? "Stock cannot be set below the reserved quantity."
+              : "Insufficient stock available for this adjustment.",
+        },
+        { status: 409 }
+      );
+    }
+
+    const previousStock = previousInventory.onHand;
+    const newStock =
+      type === "add"
+        ? previousStock + quantity
+        : type === "remove"
+          ? previousStock - quantity
+          : quantity;
+    const difference = newStock - previousStock;
+    let movementId: mongoose.Types.ObjectId | undefined;
+    let totalProductStock = 0;
 
     try {
-      // Keep the Product total stock synchronized.
-      product.stock = Math.max(0, Number(product.stock || 0) + difference);
-      await product.save();
-
-      await StockMovement.create({
+      const movement = await StockMovement.create({
         productId,
         warehouse: normalizedWarehouse,
         type,
@@ -116,11 +189,62 @@ export async function POST(request: NextRequest) {
         newStock,
         reason: reason.trim(),
       });
-    } catch (saveError) {
-      // Roll back the warehouse quantity if the following writes fail.
-      inventory.onHand = previousStock;
-      await inventory.save();
+      movementId = movement._id;
 
+      const totals = await Inventory.aggregate([
+        { $match: { productId: product._id } },
+        {
+          $group: {
+            _id: null,
+            stock: { $sum: "$onHand" },
+          },
+        },
+      ]);
+      totalProductStock = totals[0]?.stock ?? 0;
+      const status =
+        totalProductStock <= 0
+          ? "Out of Stock"
+          : totalProductStock <= product.lowStockThreshold
+            ? "Low Stock"
+            : "Active";
+
+      const productUpdate = await Product.updateOne(
+        { _id: product._id },
+        { $set: { stock: totalProductStock, status } }
+      );
+
+      if (productUpdate.matchedCount !== 1) {
+        throw new Error("Product was removed during stock adjustment.");
+      }
+    } catch (saveError) {
+      if (movementId) {
+        await StockMovement.deleteOne({ _id: movementId });
+      }
+      await Inventory.updateOne(
+        { _id: inventory._id, onHand: newStock },
+        type === "set"
+          ? { $set: { onHand: previousStock } }
+          : { $inc: { onHand: -difference } }
+      );
+      const restoredTotals = await Inventory.aggregate([
+        { $match: { productId: product._id } },
+        { $group: { _id: null, stock: { $sum: "$onHand" } } },
+      ]);
+      const restoredStock = restoredTotals[0]?.stock ?? 0;
+      await Product.updateOne(
+        { _id: product._id },
+        {
+          $set: {
+            stock: restoredStock,
+            status:
+              restoredStock <= 0
+                ? "Out of Stock"
+                : restoredStock <= product.lowStockThreshold
+                  ? "Low Stock"
+                  : "Active",
+          },
+        }
+      );
       throw saveError;
     }
 
@@ -135,8 +259,8 @@ export async function POST(request: NextRequest) {
         type,
         previousStock,
         newStock,
-        available: Math.max(0, newStock - inventory.reserved),
-        totalProductStock: product.stock,
+        available: Math.max(0, newStock - previousInventory.reserved),
+        totalProductStock,
       },
     });
   } catch (error) {

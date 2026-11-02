@@ -44,6 +44,8 @@ const ProductSchema = new Schema(
     price: { type: Number, required: true, min: 0 },
     compareAtPrice: { type: Number, min: 0, default: 0 },
     costPrice: { type: Number, min: 0, default: 0 },
+    cgstRate: { type: Number, min: 0, max: 100, default: 0 },
+    sgstRate: { type: Number, min: 0, max: 100, default: 0 },
 
     stock: { type: Number, min: 0, default: 0 },
     lowStockThreshold: { type: Number, min: 0, default: 5 },

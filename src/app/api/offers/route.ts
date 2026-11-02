@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { authorizeRequest } from "@/lib/auth";
 import connectDB from "@/lib/mongodb";
 import Offer from "@/models/Offer";
 
@@ -14,6 +15,9 @@ function getStatus(startDate: Date, endDate: Date) {
 }
 
 export async function GET(request: NextRequest) {
+  const authorization = await authorizeRequest("pricing");
+  if (authorization) return authorization;
+
   try {
     await connectDB();
 
@@ -103,6 +107,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const authorization = await authorizeRequest("pricing");
+  if (authorization) return authorization;
+
   try {
     await connectDB();
 

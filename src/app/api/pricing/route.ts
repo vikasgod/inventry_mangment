@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { authorizeRequest } from "@/lib/auth";
 import connectDB from "@/lib/mongodb";
 import Product from "@/models/Product";
 import Pricing from "@/models/Pricing";
@@ -8,6 +9,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  const authorization = await authorizeRequest("pricing");
+  if (authorization) return authorization;
+
   try {
     await connectDB();
 
@@ -101,6 +105,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const authorization = await authorizeRequest("pricing");
+  if (authorization) return authorization;
+
   try {
     await connectDB();
 

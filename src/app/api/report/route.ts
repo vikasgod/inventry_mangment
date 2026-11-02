@@ -1,5 +1,6 @@
 
 import { NextRequest, NextResponse } from "next/server";
+import { authorizeRequest } from "@/lib/auth";
 import connectDB from "@/lib/mongodb";
 import Order from "@/models/Order";
 import Product from "@/models/Product";
@@ -44,6 +45,9 @@ function getDateRange(range: string, from?: string, to?: string) {
 }
 
 export async function GET(request: NextRequest) {
+  const authorization = await authorizeRequest("reports");
+  if (authorization) return authorization;
+
   try {
     await connectDB();
 

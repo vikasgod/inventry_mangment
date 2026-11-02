@@ -1,5 +1,6 @@
 
 import { NextRequest, NextResponse } from "next/server";
+import { authorizeRequest } from "@/lib/auth";
 import mongoose from "mongoose";
 import Warehouse from "@/models/Warehouse";
 import Inventory from "@/models/Inventory";
@@ -15,6 +16,9 @@ export async function GET(
     request: NextRequest,
     { params }: Context
 ) {
+    const authorization = await authorizeRequest("warehouses");
+    if (authorization) return authorization;
+
     try {
         await connectDB();
 
@@ -85,6 +89,9 @@ export async function PUT(
     request: NextRequest,
     { params }: Context
 ) {
+    const authorization = await authorizeRequest("warehouses");
+    if (authorization) return authorization;
+
     try {
         await connectDB();
 
@@ -175,6 +182,9 @@ export async function DELETE(
     request: NextRequest,
     { params }: Context
 ) {
+    const authorization = await authorizeRequest("warehouses");
+    if (authorization) return authorization;
+
     try {
         await connectDB();
 

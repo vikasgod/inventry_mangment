@@ -39,6 +39,8 @@ const OrderItemSchema = new Schema(
       required: true,
       min: 0,
     },
+    cgstRate: { type: Number, min: 0, max: 100, default: 0 },
+    sgstRate: { type: Number, min: 0, max: 100, default: 0 },
   },
   { _id: false }
 );
@@ -57,6 +59,33 @@ const OrderSchema = new Schema(
       enum: ["Website", "Amazon", "Flipkart", "Meesho"],
       required: true,
       index: true,
+    },
+
+    warehouse: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    stockAllocations: [
+      {
+        productId: {
+          type: Schema.Types.ObjectId,
+          ref: "Product",
+          required: true,
+        },
+        quantity: {
+          type: Number,
+          required: true,
+          min: 1,
+        },
+      },
+    ],
+
+    inventoryStatus: {
+      type: String,
+      enum: ["not_tracked", "reserved", "deducted", "released"],
+      default: "not_tracked",
     },
 
     // External marketplace order ID
@@ -83,6 +112,8 @@ const OrderSchema = new Schema(
         type: String,
         default: "",
       },
+      billingAddress: { type: String, default: "" },
+      shippingAddress: { type: String, default: "" },
     },
 
     items: {

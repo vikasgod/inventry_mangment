@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { authorizeRequest } from "@/lib/auth";
 import connectDB from "@/lib/mongodb";
 import ChannelListing from "@/models/ChannelListing";
 
@@ -10,6 +11,9 @@ export async function POST(
   request: NextRequest,
   context: Context
 ) {
+  const authorization = await authorizeRequest("listings");
+  if (authorization) return authorization;
+
   try {
     await connectDB();
 

@@ -1,7 +1,7 @@
 
 import type { Metadata } from "next";
 import "./globals.css";
-import Sidebar from "@/components/Sidebar";
+import AuthShell from "@/components/AuthShell";
 
 export const metadata: Metadata = {
   title: "StockCRM | Inventory CRM",
@@ -16,10 +16,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen bg-slate-50 text-slate-900 antialiased">
-        <Sidebar />
-        <main className="ml-64 min-h-screen min-w-0">
-          {children}
-        </main>
+        <AuthShell>{children}</AuthShell>
       </body>
     </html>
   );

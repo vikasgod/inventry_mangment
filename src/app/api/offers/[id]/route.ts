@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { authorizeRequest } from "@/lib/auth";
 import mongoose from "mongoose";
 import connectDB from "@/lib/mongodb";
 import Offer from "@/models/Offer";
@@ -11,6 +12,9 @@ export async function DELETE(
   _request: NextRequest,
   context: Context
 ) {
+  const authorization = await authorizeRequest("pricing");
+  if (authorization) return authorization;
+
   try {
     await connectDB();
 

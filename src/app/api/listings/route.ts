@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { authorizeRequest } from "@/lib/auth";
 import connectDB from "@/lib/mongodb";
 import Product from "@/models/Product";
 import ChannelListing from "@/models/ChannelListing";
@@ -9,6 +10,9 @@ export const dynamic = "force-dynamic";
 const validChannels = ["WEBSITE", "AMAZON", "FLIPKART", "MEESHO"];
 
 export async function GET(request: NextRequest) {
+  const authorization = await authorizeRequest("listings");
+  if (authorization) return authorization;
+
   try {
     await connectDB();
 
@@ -234,6 +238,9 @@ type ProductData = {
 };
 
 export async function POST(request: NextRequest) {
+  const authorization = await authorizeRequest("listings");
+  if (authorization) return authorization;
+
   try {
     await connectDB();
 

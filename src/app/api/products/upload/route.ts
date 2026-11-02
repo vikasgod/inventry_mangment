@@ -1,5 +1,6 @@
 
 import { NextRequest, NextResponse } from "next/server";
+import { authorizeRequest } from "@/lib/auth";
 import cloudinary from "@/lib/cloudinary";
 
 export const runtime = "nodejs";
@@ -8,6 +9,9 @@ const MAX_FILES = 8;
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 export async function POST(request: NextRequest) {
+  const authorization = await authorizeRequest("products");
+  if (authorization) return authorization;
+
   try {
     const formData = await request.formData();
     const files = formData.getAll("images");

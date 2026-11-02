@@ -1,8 +1,10 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
+import { authorizeRequest } from "@/lib/auth";
 import connectDB from "@/lib/mongodb";
 import Product from "@/models/Product";
+import Inventory from "@/models/Inventory";
 
 export const runtime = "nodejs";
 
@@ -22,6 +24,9 @@ async function findProductId(context: Context) {
 }
 
 export async function GET(_request: NextRequest, context: Context) {
+  const authorization = await authorizeRequest("products");
+  if (authorization) return authorization;
+
   try {
     const id = await findProductId(context);
 
@@ -44,6 +49,9 @@ export async function GET(_request: NextRequest, context: Context) {
 }
 
 export async function PATCH(request: NextRequest, context: Context) {
+  const authorization = await authorizeRequest("products");
+  if (authorization) return authorization;
+
   try {
     const id = await findProductId(context);
 
@@ -63,7 +71,8 @@ export async function PATCH(request: NextRequest, context: Context) {
       "price",
       "compareAtPrice",
       "costPrice",
-      "stock",
+      "cgstRate",
+      "sgstRate",
       "lowStockThreshold",
       "variants",
       "channels",
@@ -98,11 +107,12 @@ export async function PATCH(request: NextRequest, context: Context) {
       }
     }
 
-    for (const key of ["price", "compareAtPrice", "costPrice", "stock", "lowStockThreshold"]) {
+    for (const key of ["price", "compareAtPrice", "costPrice", "lowStockThreshold", "cgstRate", "sgstRate"]) {
       if (key in update) {
         const value = Number(update[key]);
 
-        if (!Number.isFinite(value) || value < 0) {
+        const isTaxRate = key === "cgstRate" || key === "sgstRate";
+        if (!Number.isFinite(value) || value < 0 || (isTaxRate && value > 100)) {
           return NextResponse.json(
             { message: `${key} must be a valid non-negative number.` },
             { status: 400 }
@@ -187,6 +197,38 @@ export async function PATCH(request: NextRequest, context: Context) {
       return NextResponse.json({ message: "Product not found." }, { status: 404 });
     }
 
+    if (
+      Number(update.cgstRate ?? current.cgstRate ?? 0) +
+        Number(update.sgstRate ?? current.sgstRate ?? 0) >
+      100
+    ) {
+      return NextResponse.json(
+        { message: "Combined CGST and SGST rate cannot exceed 100%." },
+        { status: 400 }
+      );
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, "stock")) {
+      const currentInventory = await Inventory.aggregate([
+        { $match: { productId: current._id } },
+        { $group: { _id: null, stock: { $sum: "$onHand" } } },
+      ]);
+      const inventoryStock = currentInventory[0]?.stock ?? 0;
+
+      if (
+        Number(body.stock) !== Number(current.stock) &&
+        Number(body.stock) !== inventoryStock
+      ) {
+        return NextResponse.json(
+          {
+            message:
+              "Manage stock from Inventory so warehouse quantities remain accurate.",
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     const nextStock = Number(update.stock ?? current.stock);
     const nextThreshold = Number(
       update.lowStockThreshold ?? current.lowStockThreshold
@@ -211,6 +253,9 @@ export async function PATCH(request: NextRequest, context: Context) {
 }
 
 export async function DELETE(_request: NextRequest, context: Context) {
+  const authorization = await authorizeRequest("products");
+  if (authorization) return authorization;
+
   try {
     const id = await findProductId(context);
 

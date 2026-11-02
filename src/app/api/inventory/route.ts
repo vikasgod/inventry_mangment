@@ -1,5 +1,6 @@
 
 import { NextRequest, NextResponse } from "next/server";
+import { authorizeRequest } from "@/lib/auth";
 import Inventory from "@/models/Inventory";
 import Product from "@/models/Product";
 import connectDB from "@/lib/mongodb";
@@ -7,6 +8,9 @@ import connectDB from "@/lib/mongodb";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  const authorization = await authorizeRequest("inventory");
+  if (authorization) return authorization;
+
   try {
     await connectDB();
 
