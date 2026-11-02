@@ -43,7 +43,8 @@ function OfferModal({
               Create New Offer
             </h2>
             <p className="mt-1 text-xs text-slate-500">
-              Configure a promotional discount
+              Schedule a channel promotion. Active offers apply to new orders;
+              coupon-code offers require that code on the order.
             </p>
           </div>
 

@@ -4,6 +4,8 @@ import mongoose from "mongoose";
 import connectDB from "@/lib/mongodb";
 import Order from "@/models/Order";
 import Product from "@/models/Product";
+import Pricing from "@/models/Pricing";
+import Offer from "@/models/Offer";
 import Warehouse from "@/models/Warehouse";
 import {
   consumeOrderStock,
@@ -23,8 +25,10 @@ type ResolvedOrderItem = {
   image: string;
   variant: string;
   price: number;
+  unitCost?: number;
   quantity: number;
   total: number;
+  discount: number;
   cgstRate: number;
   sgstRate: number;
 };
@@ -36,6 +40,9 @@ type ProductSnapshot = {
   images?: { url: string }[];
   cgstRate?: number;
   sgstRate?: number;
+  costPrice?: number;
+  price?: number;
+  category?: string;
 };
 
 export const dynamic = "force-dynamic";
@@ -54,6 +61,8 @@ const channels = [
   "Flipkart",
   "Meesho",
 ];
+
+const roundMoney = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
 
 export async function GET(request: NextRequest) {
   const authorization = await authorizeRequest("orders");
@@ -289,29 +298,30 @@ export async function POST(request: NextRequest) {
         throw new Error("INVALID_ORDER_ITEM");
       }
 
-      const price = Number(item.price);
       const quantity = Number(item.quantity);
 
       if (
-        !Number.isFinite(price) ||
-        price < 0 ||
+        (item.price !== undefined &&
+          (!Number.isFinite(Number(item.price)) || Number(item.price) < 0)) ||
         !Number.isInteger(quantity) ||
         quantity < 1
       ) {
         throw new Error("INVALID_ORDER_ITEM");
       }
 
-      return { item, price, quantity };
+      return { item, quantity };
     });
 
     const shipping = Number(body.shipping ?? 0);
-    const discount = Number(body.discount ?? 0);
+    const requestedDiscount = Number(body.discount ?? 0);
+    const offerCode =
+      typeof body.offerCode === "string" ? body.offerCode.trim().toUpperCase() : "";
 
     if (
       !Number.isFinite(shipping) ||
       shipping < 0 ||
-      !Number.isFinite(discount) ||
-      discount < 0
+      !Number.isFinite(requestedDiscount) ||
+      requestedDiscount < 0
     ) {
       return NextResponse.json(
         {
@@ -367,8 +377,9 @@ export async function POST(request: NextRequest) {
 
     const items: ResolvedOrderItem[] = [];
     const quantitiesByProduct = new Map<string, number>();
+    const categoriesByProduct = new Map<string, string>();
 
-    for (const { item, price, quantity } of requestedItems) {
+    for (const { item, quantity } of requestedItems) {
       const productQuery = item.productId
         ? mongoose.isValidObjectId(item.productId)
           ? { _id: item.productId, isArchived: { $ne: true } }
@@ -406,10 +417,19 @@ export async function POST(request: NextRequest) {
       }
 
       const productId = String(product._id);
+      const pricing = await Pricing.findOne({ productId: product._id })
+        .select(`prices.${body.channel}`)
+        .lean<{ prices?: Record<string, number> } | null>();
+      const channelPrice = pricing?.prices?.[body.channel];
+      const price =
+        channelPrice !== undefined && Number.isFinite(Number(channelPrice))
+          ? Number(channelPrice)
+          : Number(product.price ?? 0);
       quantitiesByProduct.set(
         productId,
         (quantitiesByProduct.get(productId) || 0) + quantity
       );
+      categoriesByProduct.set(productId, product.category || "");
 
       items.push({
         productId: product._id,
@@ -421,6 +441,11 @@ export async function POST(request: NextRequest) {
             : product.images?.[0]?.url || "",
         variant: typeof item.variant === "string" ? item.variant : "",
         price,
+        unitCost:
+          Number(product.costPrice) > 0
+            ? Number(product.costPrice)
+            : undefined,
+        discount: 0,
         quantity,
         total: price * quantity,
         cgstRate: Number(product.cgstRate ?? 0),
@@ -429,6 +454,88 @@ export async function POST(request: NextRequest) {
     }
 
     const subtotal = items.reduce((sum, item) => sum + item.total, 0);
+    const now = new Date();
+    const activeOffers = await Offer.find({
+      channel: { $in: ["All Channels", body.channel] },
+      code: offerCode,
+      startDate: { $lte: now },
+      endDate: { $gte: now },
+    })
+      .sort({ startDate: -1, createdAt: -1 })
+      .lean();
+    const applicableOffer = activeOffers.find((offer) =>
+      items.some((item) => {
+        const category = categoriesByProduct.get(String(item.productId));
+        return offer.products === "All Products" || offer.products === category;
+      })
+    );
+
+    if (offerCode && !applicableOffer) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "The offer code is invalid, expired, or not applicable to this order.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (applicableOffer) {
+      const eligibleItems = items.filter((item) => {
+        const category = categoriesByProduct.get(String(item.productId));
+        return (
+          applicableOffer.products === "All Products" ||
+          applicableOffer.products === category
+        );
+      });
+      const eligibleSubtotal = eligibleItems.reduce(
+        (sum, item) => sum + item.total,
+        0
+      );
+
+      if (applicableOffer.type === "Percentage") {
+        for (const item of eligibleItems) {
+          item.discount = roundMoney(
+            (item.total * Number(applicableOffer.value)) / 100
+          );
+        }
+      } else if (eligibleSubtotal > 0) {
+        const totalOfferDiscount = Math.min(
+          Number(applicableOffer.value),
+          eligibleSubtotal
+        );
+        let allocatedDiscount = 0;
+        eligibleItems.forEach((item, index) => {
+          const itemDiscount =
+            index === eligibleItems.length - 1
+              ? totalOfferDiscount - allocatedDiscount
+              : Math.min(
+                  totalOfferDiscount - allocatedDiscount,
+                  roundMoney((totalOfferDiscount * item.total) / eligibleSubtotal)
+                );
+          item.discount = roundMoney(itemDiscount);
+          allocatedDiscount += item.discount;
+        });
+      }
+    } else if (requestedDiscount > 0 && subtotal > 0) {
+      const itemDiscount = Math.min(requestedDiscount, subtotal);
+      let allocatedDiscount = 0;
+      items.forEach((item, index) => {
+        const itemDiscountAmount =
+          index === items.length - 1
+            ? itemDiscount - allocatedDiscount
+            : Math.min(
+                itemDiscount - allocatedDiscount,
+                roundMoney((itemDiscount * item.total) / subtotal)
+              );
+        item.discount = roundMoney(itemDiscountAmount);
+        allocatedDiscount += item.discount;
+      });
+    }
+
+    const discount = applicableOffer
+      ? roundMoney(items.reduce((sum, item) => sum + item.discount, 0))
+      : requestedDiscount;
 
     if (discount > subtotal + shipping) {
       return NextResponse.json(
@@ -480,6 +587,7 @@ export async function POST(request: NextRequest) {
       subtotal,
       shipping,
       discount,
+      appliedOfferCode: applicableOffer?.code || "",
       totalAmount,
       status,
       paymentMethod:

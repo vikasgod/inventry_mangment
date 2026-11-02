@@ -47,11 +47,20 @@ export default function DownloadInvoiceButton({
       const invoiceOrder: Order = data.order;
       const seller: SellerDetails = data.seller;
       const subtotal = Number(invoiceOrder.subtotal || 0);
-      const discountOnItems = Math.min(Number(invoiceOrder.discount || 0), subtotal);
+      const hasLineDiscountSnapshots = invoiceOrder.items.every(
+        (item) => typeof item.discount === "number"
+      );
+      const discountOnItems = hasLineDiscountSnapshots
+        ? invoiceOrder.items.reduce(
+            (sum, item) => sum + Number(item.discount || 0),
+            0
+          )
+        : Math.min(Number(invoiceOrder.discount || 0), subtotal);
       const rows = invoiceOrder.items.map((item, index) => {
         const gross = Number(item.total ?? item.price * item.quantity);
-        const discount =
-          subtotal <= 0
+        const discount = hasLineDiscountSnapshots
+          ? Number(item.discount || 0)
+          : subtotal <= 0
             ? 0
             : index === invoiceOrder.items.length - 1
               ? roundMoney(

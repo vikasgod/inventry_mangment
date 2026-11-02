@@ -14,6 +14,7 @@ const ChannelListingSchema = new Schema(
     productName: { type: String, required: true },
     sku: { type: String, required: true },
     image: { type: String, default: "" },
+    images: { type: [String], default: [] },
     category: { type: String, default: "" },
 
     channel: {

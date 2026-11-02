@@ -38,33 +38,6 @@ function formatPrice(price: number) {
   }).format(price);
 }
 
-function ChannelIcon({ channel }: { channel: string }) {
-  const styles: Record<string, string> = {
-    Website: "bg-blue-50 text-blue-600 border-blue-100",
-    Amazon: "bg-amber-50 text-amber-700 border-amber-200",
-    Flipkart: "bg-yellow-50 text-blue-700 border-yellow-200",
-    Meesho: "bg-pink-50 text-pink-700 border-pink-200",
-  };
-
-  const labels: Record<string, string> = {
-    Website: "W",
-    Amazon: "a",
-    Flipkart: "f",
-    Meesho: "m",
-  };
-
-  return (
-    <span
-      title={channel}
-      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border text-sm font-extrabold ${
-        styles[channel] ?? "border-slate-200 bg-slate-50 text-slate-600"
-      }`}
-    >
-      {labels[channel] ?? channel.charAt(0)}
-    </span>
-  );
-}
-
 function StatusBadge({ status }: { status: ProductStatus }) {
   const styles: Record<ProductStatus, string> = {
     Active: "border-emerald-200 bg-emerald-50 text-emerald-700",
@@ -129,7 +102,6 @@ export default function ProductsPage() {
           status:
             p.status || (Number(p.stock || 0) <= 0 ? "Out of Stock" : "Active"),
           image: p.images?.[0]?.url || "",
-          channels: Array.isArray(p.channels) ? p.channels : [],
         }));
         if (!cancelled) setProducts(mapped);
       } catch (error) {
@@ -524,7 +496,6 @@ export default function ProductsPage() {
                     "Variants",
                     "Stock (Total)",
                     "Price (Starting)",
-                    "Channels",
                     "Status",
                     "Actions",
                   ].map((heading) => (
@@ -615,14 +586,6 @@ export default function ProductsPage() {
                     </td>
 
                     <td className="px-3 py-3">
-                      <div className="flex items-center gap-1.5">
-                        {product.channels.map((channel) => (
-                          <ChannelIcon key={channel} channel={channel} />
-                        ))}
-                      </div>
-                    </td>
-
-                    <td className="px-3 py-3">
                       <StatusBadge status={product.status} />
                     </td>
 
@@ -655,7 +618,7 @@ export default function ProductsPage() {
 
                 {visibleProducts.length === 0 && (
                   <tr>
-                    <td colSpan={10} className="px-6 py-16 text-center">
+                    <td colSpan={9} className="px-6 py-16 text-center">
                       <Package
                         size={32}
                         className="mx-auto mb-3 text-slate-300"

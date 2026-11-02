@@ -42,6 +42,7 @@ type ReportData = {
   summary: {
     totalSales: number;
     totalOrders: number;
+    grossProfit: number | null;
     inventoryValue: number;
     lowStockProducts: number;
     totalUnits: number;
@@ -58,6 +59,9 @@ type ReportData = {
     channel: string;
     sales: number;
     orders: number;
+    netItemSales: number;
+    costOfGoodsSold: number;
+    grossProfit: number | null;
   }[];
   topProducts: {
     productId?: string;
@@ -129,7 +133,7 @@ const reportCategories = [
   },
   {
     title: "Profit & Loss Report",
-    description: "Revenue, cost and profit",
+    description: "Channel gross profit from saved order costs",
     icon: TrendingUp,
     color: "emerald",
     type: "profit",
@@ -193,6 +197,10 @@ export default function ReportsPage() {
       ["Metric", "Value"],
       ["Total Sales", data.summary.totalSales],
       ["Total Orders", data.summary.totalOrders],
+      [
+        "Gross Profit",
+        data.summary.grossProfit ?? "Unavailable (order cost snapshots missing)",
+      ],
       ["Inventory Value", data.summary.inventoryValue],
       ["Low Stock Products", data.summary.lowStockProducts],
       ["Total Units", data.summary.totalUnits],
@@ -205,10 +213,13 @@ export default function ReportsPage() {
     ];
 
     const marketplaceRows = [
-      ["Marketplace", "Sales", "Orders"],
+      ["Marketplace", "Order Sales", "Net Item Sales", "Cost of Goods", "Gross Profit", "Orders"],
       ...data.marketplaceData.map((item) => [
         item.channel,
         item.sales,
+        item.netItemSales,
+        item.costOfGoodsSold,
+        item.grossProfit ?? "Unavailable (legacy order cost not saved)",
         item.orders,
       ]),
     ];
@@ -266,6 +277,12 @@ export default function ReportsPage() {
       body: [
         ["Total Sales", formatCurrency(data.summary.totalSales)],
         ["Total Orders", String(data.summary.totalOrders)],
+        [
+          "Gross Profit",
+          data.summary.grossProfit === null
+            ? "Unavailable (order cost snapshots missing)"
+            : formatCurrency(data.summary.grossProfit),
+        ],
         ["Inventory Value", formatCurrency(data.summary.inventoryValue)],
         ["Low Stock Products", String(data.summary.lowStockProducts)],
         ["Total Units", String(data.summary.totalUnits)],
@@ -286,10 +303,15 @@ export default function ReportsPage() {
     });
 
     autoTable(pdf, {
-      head: [["Marketplace", "Sales", "Orders"]],
+      head: [["Marketplace", "Order Sales", "Net Item Sales", "Cost of Goods", "Gross Profit", "Orders"]],
       body: data.marketplaceData.map((item) => [
         item.channel,
         formatCurrency(item.sales),
+        formatCurrency(item.netItemSales),
+        formatCurrency(item.costOfGoodsSold),
+        item.grossProfit === null
+          ? "Unavailable"
+          : formatCurrency(item.grossProfit),
         String(item.orders),
       ]),
     });
@@ -415,13 +437,29 @@ export default function ReportsPage() {
       )}
 
       {/* Summary cards */}
-      <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
+      <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-5">
         <SummaryCard
           title="Total Sales"
           value={formatCurrency(data?.summary.totalSales || 0)}
           subtitle="For selected period"
           icon={<ShoppingCart size={25} />}
           color="blue"
+          loading={loading}
+        />
+        <SummaryCard
+          title="Gross Profit"
+          value={
+            data?.summary.grossProfit === null
+              ? "Unavailable"
+              : formatCurrency(data?.summary.grossProfit || 0)
+          }
+          subtitle={
+            data?.summary.grossProfit === null
+              ? "Some orders have no saved product cost"
+              : "Net item sales minus saved product costs"
+          }
+          icon={<TrendingUp size={25} />}
+          color="green"
           loading={loading}
         />
         <SummaryCard
@@ -606,7 +644,13 @@ export default function ReportsPage() {
                       {item.channel}
                     </div>
                     <p className="ml-5 mt-0.5 text-sm text-slate-600">
-                      {formatCurrency(item.sales)}
+                      Order sales: {formatCurrency(item.sales)}
+                    </p>
+                    <p className="ml-5 mt-0.5 text-xs text-slate-500">
+                      Gross profit:{" "}
+                      {item.grossProfit === null
+                        ? "Unavailable for older orders"
+                        : formatCurrency(item.grossProfit)}
                     </p>
                   </div>
                   <span className="text-sm font-medium text-slate-600">
@@ -617,6 +661,9 @@ export default function ReportsPage() {
               {!loading && !data?.marketplaceData.length && (
                 <p className="text-sm text-slate-500">No marketplace data</p>
               )}
+              <p className="border-t border-slate-100 pt-3 text-xs leading-5 text-slate-500">
+                Gross profit uses saved item prices and cost snapshots, less item discounts. It excludes marketplace fees and shipping; tax is not separately adjusted.
+              </p>
             </div>
           </div>
         </section>
@@ -638,11 +685,9 @@ export default function ReportsPage() {
                   key={item.type}
                   type="button"
                   onClick={() => {
-                    if (item.type === "purchase" || item.type === "profit") {
+                    if (item.type === "purchase") {
                       alert(
-                        item.type === "purchase"
-                          ? "Purchase report requires a Purchase Orders module."
-                          : "Profit & Loss requires reliable cost and expense data.",
+                        "Purchase report requires a Purchase Orders module.",
                       );
                       return;
                     }
@@ -650,7 +695,7 @@ export default function ReportsPage() {
                     const element = document.getElementById(
                       item.type === "sales"
                         ? "sales-overview"
-                        : item.type === "marketplace"
+                        : item.type === "marketplace" || item.type === "profit"
                           ? "marketplace-performance"
                           : "top-products",
                     );

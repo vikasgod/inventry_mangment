@@ -43,7 +43,6 @@ export type Product = {
   price: number;
   status: "Active" | "Low Stock" | "Out of Stock" | "Draft";
   image: string;
-  channels: string[];
 };
 
 export const categories = [
@@ -121,6 +120,7 @@ export type Order = {
     price: number;
     quantity: number;
     total: number;
+    discount?: number;
     cgstRate?: number;
     sgstRate?: number;
   }[];

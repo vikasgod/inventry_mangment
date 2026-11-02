@@ -55,7 +55,7 @@ const ProductSchema = new Schema(
     channels: {
       type: [String],
       enum: ["Website", "Amazon", "Flipkart", "Meesho"],
-      default: ["Website"],
+      default: [],
     },
 
     status: {

@@ -78,6 +78,7 @@ export async function GET(request: NextRequest) {
       orderSummary,
       salesTrend,
       marketplaceData,
+      marketplaceProfitData,
       topProducts,
       inventoryData,
       warehouses,
@@ -146,13 +147,127 @@ export async function GET(request: NextRequest) {
         { $unwind: "$items" },
         {
           $group: {
+            _id: { orderId: "$_id", channel: "$channel" },
+            itemSales: { $sum: { $ifNull: ["$items.total", 0] } },
+            itemDiscount: {
+              $sum: {
+                $cond: [
+                  { $isNumber: "$items.discount" },
+                  "$items.discount",
+                  0,
+                ],
+              },
+            },
+            discountSnapshotItems: {
+              $sum: {
+                $cond: [{ $isNumber: "$items.discount" }, 1, 0],
+              },
+            },
+            itemCount: { $sum: 1 },
+            costOfGoodsSold: {
+              $sum: {
+                $cond: [
+                  { $isNumber: "$items.unitCost" },
+                  {
+                    $multiply: [
+                      "$items.unitCost",
+                      { $ifNull: ["$items.quantity", 0] },
+                    ],
+                  },
+                  0,
+                ],
+              },
+            },
+            missingCostItems: {
+              $sum: {
+                $cond: [{ $isNumber: "$items.unitCost" }, 0, 1],
+              },
+            },
+            discount: { $first: { $ifNull: ["$discount", 0] } },
+            subtotal: { $first: { $ifNull: ["$subtotal", 0] } },
+          },
+        },
+        {
+          $addFields: {
+            netItemSales: {
+              $cond: [
+                { $eq: ["$discountSnapshotItems", "$itemCount"] },
+                { $subtract: ["$itemSales", "$itemDiscount"] },
+                {
+                  $subtract: [
+                    "$itemSales",
+                    {
+                      $multiply: [
+                        { $min: ["$discount", "$subtotal"] },
+                        {
+                          $cond: [
+                            { $gt: ["$subtotal", 0] },
+                            { $divide: ["$itemSales", "$subtotal"] },
+                            0,
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        },
+        {
+          $group: {
+            _id: "$_id.channel",
+            netItemSales: { $sum: "$netItemSales" },
+            costOfGoodsSold: { $sum: "$costOfGoodsSold" },
+            missingCostItems: { $sum: "$missingCostItems" },
+          },
+        },
+      ]),
+
+      Order.aggregate([
+        { $match: orderMatch },
+        { $unwind: "$items" },
+        {
+          $addFields: {
+            netItemSales: {
+              $max: [
+                0,
+                {
+                  $subtract: [
+                    { $ifNull: ["$items.total", 0] },
+                    {
+                      $cond: [
+                        { $isNumber: "$items.discount" },
+                        "$items.discount",
+                        {
+                          $multiply: [
+                            { $min: ["$discount", "$subtotal"] },
+                            {
+                              $cond: [
+                                { $gt: ["$subtotal", 0] },
+                                { $divide: ["$items.total", "$subtotal"] },
+                                0,
+                              ],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        },
+        {
+          $group: {
             _id: {
               productId: "$items.productId",
               name: "$items.name",
               sku: "$items.sku",
               image: "$items.image",
             },
-            sales: { $sum: "$items.total" },
+            sales: { $sum: "$netItemSales" },
             unitsSold: { $sum: "$items.quantity" },
           },
         },
@@ -240,10 +355,19 @@ export async function GET(request: NextRequest) {
 
     const marketplaceTotals = channels.map((channel) => {
       const found = marketplaceData.find((item: any) => item._id === channel);
+      const profit = marketplaceProfitData.find(
+        (item: any) => item._id === channel
+      );
       return {
         channel,
         sales: found?.sales || 0,
         orders: found?.orders || 0,
+        netItemSales: profit?.netItemSales || 0,
+        costOfGoodsSold: profit?.costOfGoodsSold || 0,
+        grossProfit:
+          (profit?.missingCostItems || 0) > 0
+            ? null
+            : (profit?.netItemSales || 0) - (profit?.costOfGoodsSold || 0),
       };
     });
 
@@ -259,6 +383,14 @@ export async function GET(request: NextRequest) {
       summary: {
         totalSales: summary.totalSales,
         totalOrders: summary.totalOrders,
+        grossProfit: marketplaceTotals.some(
+          (item) => item.orders > 0 && item.grossProfit === null
+        )
+          ? null
+          : marketplaceTotals.reduce(
+              (total, item) => total + (item.grossProfit || 0),
+              0
+            ),
         inventoryValue: inventory.inventoryValue,
         lowStockProducts: inventory.lowStockRecords,
         totalUnits: inventory.totalUnits,

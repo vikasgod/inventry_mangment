@@ -425,6 +425,13 @@ export default function PricingOffersPage() {
             </button>
           </div>
         </div>
+        <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-900">
+          Channel prices are the order base prices. Active offers are applied
+          when orders are created (no-code offers apply automatically; coded
+          offers require the matching <code>offerCode</code>). Listing prices
+          remain listing-specific and are not published to marketplaces until
+          a seller API is connected.
+        </div>
         {loading ? (
           <div className="rounded-xl border border-slate-200 bg-white p-12 text-center text-slate-500">
             Loading pricing and offers...

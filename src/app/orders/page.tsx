@@ -16,6 +16,8 @@ import {
   CreditCard,
   RefreshCw,
   X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { StatCard } from "@/components/order/statCard";
 import DownloadInvoiceButton from "@/components/order/DownloadInvoiceButton";
@@ -45,6 +47,9 @@ export default function OrdersPage() {
   const [search, setSearch] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -52,6 +57,8 @@ export default function OrdersPage() {
   const [notice, setNotice] = useState("");
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [tracking, setTracking] = useState("");
+
+  const pageSize = 10;
 
   const loadOrders = useCallback(async () => {
     setLoading(true);
@@ -62,7 +69,8 @@ export default function OrdersPage() {
         channel,
         status,
         q: search,
-        limit: "100",
+        page: String(page),
+        limit: String(pageSize),
       });
 
       if (from) params.set("from", from);
@@ -80,6 +88,10 @@ export default function OrdersPage() {
 
       setOrders(data.orders);
       setStats(data.stats);
+      setTotal(data.total);
+      const nextTotalPages = Math.max(1, data.totalPages);
+      setTotalPages(nextTotalPages);
+      setPage((current) => Math.min(current, nextTotalPages));
 
       setSelected((current) => {
         if (!current) return data.orders[0] || null;
@@ -93,7 +105,7 @@ export default function OrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [channel, status, search, from, to]);
+  }, [channel, status, search, from, to, page, pageSize]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -142,10 +154,39 @@ export default function OrdersPage() {
     }
   }
 
-  function exportCSV() {
+  async function exportCSV() {
+    let ordersToExport = orders;
+
+    try {
+      const params = new URLSearchParams({
+        channel,
+        status,
+        q: search,
+        page: "1",
+        limit: "100",
+      });
+
+      if (from) params.set("from", from);
+      if (to) params.set("to", to);
+
+      const response = await fetch(`/api/orders?${params.toString()}`, {
+        cache: "no-store",
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Unable to export orders");
+      }
+
+      ordersToExport = data.orders;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to export orders");
+      return;
+    }
+
     const rows = [
       ["Order ID", "Channel", "Customer", "Amount", "Status", "Date"],
-      ...orders.map((order) => [
+      ...ordersToExport.map((order) => [
         order.orderNumber,
         order.channel,
         order.customer.name,
@@ -180,6 +221,14 @@ export default function OrdersPage() {
     setTracking(order.trackingNumber || "");
     setNotice("");
   }
+
+  const firstVisiblePage = Math.max(1, Math.min(page - 2, totalPages - 4));
+  const visiblePages = Array.from(
+    { length: Math.min(totalPages, 5) },
+    (_, index) => firstVisiblePage + index,
+  );
+  const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const end = Math.min(page * pageSize, total);
 
   return (
     <main className="min-h-screen bg-slate-50 p-4 text-slate-800 md:p-6">
@@ -265,7 +314,10 @@ export default function OrdersPage() {
           <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
             <select
               value={channel}
-              onChange={(e) => setChannel(e.target.value)}
+              onChange={(e) => {
+                setChannel(e.target.value);
+                setPage(1);
+              }}
               className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500"
             >
               <option value="all">All Channels</option>
@@ -277,7 +329,10 @@ export default function OrdersPage() {
 
             <select
               value={status}
-              onChange={(e) => setStatus(e.target.value)}
+              onChange={(e) => {
+                setStatus(e.target.value);
+                setPage(1);
+              }}
               className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500"
             >
               <option value="all">All Statuses</option>
@@ -294,7 +349,10 @@ export default function OrdersPage() {
                 type="date"
                 aria-label="Start date"
                 value={from}
-                onChange={(e) => setFrom(e.target.value)}
+                onChange={(e) => {
+                  setFrom(e.target.value);
+                  setPage(1);
+                }}
                 className="w-full min-w-0 py-2 text-xs outline-none"
               />
               <span className="text-slate-400">–</span>
@@ -302,7 +360,10 @@ export default function OrdersPage() {
                 type="date"
                 aria-label="End date"
                 value={to}
-                onChange={(e) => setTo(e.target.value)}
+                onChange={(e) => {
+                  setTo(e.target.value);
+                  setPage(1);
+                }}
                 className="w-full min-w-0 py-2 text-xs outline-none"
               />
             </div>
@@ -311,7 +372,10 @@ export default function OrdersPage() {
               <Search size={17} className="text-slate-400" />
               <input
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
                 placeholder="Search order, customer, SKU..."
                 className="w-full py-2.5 text-sm outline-none"
               />
@@ -405,9 +469,55 @@ export default function OrdersPage() {
             </table>
           </div>
 
-          <p className="mt-3 border-t pt-3 text-xs text-slate-500">
-            Showing {orders.length} order(s)
-          </p>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t pt-3">
+            <p className="text-xs text-slate-500">
+              Showing {start} to {end} of {total} orders
+            </p>
+
+            <nav
+              aria-label="Orders pagination"
+              className="flex items-center gap-1"
+            >
+              <button
+                type="button"
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                disabled={page <= 1 || loading}
+                aria-label="Previous page"
+                className="rounded-md border p-2 text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              {visiblePages.map((pageNumber) => (
+                <button
+                  type="button"
+                  key={pageNumber}
+                  onClick={() => setPage(pageNumber)}
+                  disabled={loading}
+                  aria-current={pageNumber === page ? "page" : undefined}
+                  className={`min-w-9 rounded-md border px-2.5 py-1.5 text-xs ${
+                    pageNumber === page
+                      ? "border-blue-600 bg-blue-600 text-white"
+                      : "text-slate-600 hover:bg-slate-50"
+                  } disabled:cursor-not-allowed disabled:opacity-50`}
+                >
+                  {pageNumber}
+                </button>
+              ))}
+
+              <button
+                type="button"
+                onClick={() =>
+                  setPage((current) => Math.min(totalPages, current + 1))
+                }
+                disabled={page >= totalPages || loading}
+                aria-label="Next page"
+                className="rounded-md border p-2 text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </nav>
+          </div>
         </section>
 
         {selected && (

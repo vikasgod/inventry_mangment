@@ -31,7 +31,6 @@ type Product = {
     price: number;
     stock: number;
   }[];
-  channels: string[];
   status: string;
   createdAt: string;
   updatedAt: string;
@@ -219,23 +218,6 @@ export default function ProductDetailsPage({
             </div>
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <h2 className="font-semibold">Sales Channels</h2>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {product.channels.map((channel) => (
-                <span
-                  key={channel}
-                  className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700"
-                >
-                  {channel}
-                </span>
-              ))}
-            </div>
-            <p className="mt-3 text-xs leading-5 text-slate-500">
-              These are saved channel selections, not confirmation that the
-              product is published on each marketplace.
-            </p>
-          </div>
         </section>
       </div>
 

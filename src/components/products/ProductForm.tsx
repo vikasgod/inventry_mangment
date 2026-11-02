@@ -30,7 +30,6 @@ type ProductData = {
   stock: number;
   lowStockThreshold: number;
   images: ProductImage[];
-  channels: string[];
   variants: Array<{
     name: string;
     sku: string;
@@ -39,8 +38,6 @@ type ProductData = {
     attributes?: Record<string, string>;
   }>;
 };
-
-const channelOptions = ["Website", "Amazon", "Flipkart", "Meesho"];
 
 const emptyForm = {
   name: "",
@@ -67,7 +64,6 @@ export default function ProductForm({
   const [form, setForm] = useState(emptyForm);
   const [images, setImages] = useState<ProductImage[]>([]);
   const [files, setFiles] = useState<File[]>([]);
-  const [channels, setChannels] = useState<string[]>(["Website"]);
   const [variants, setVariants] = useState<Variant[]>([]);
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
@@ -106,7 +102,6 @@ export default function ProductForm({
         });
 
         setImages(p.images || []);
-        setChannels(p.channels?.length ? p.channels : ["Website"]);
         setVariants(
           (p.variants || []).map((v) => ({
             name: v.name,
@@ -169,14 +164,6 @@ export default function ProductForm({
     setFiles((current) => current.filter((_, i) => i !== index));
   }
 
-  function toggleChannel(channel: string) {
-    setChannels((current) =>
-      current.includes(channel)
-        ? current.filter((item) => item !== channel)
-        : [...current, channel]
-    );
-  }
-
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
@@ -187,14 +174,9 @@ export default function ProductForm({
       return;
     }
 
-    if (channels.length === 0) {
-      setError("Select at least one sales channel.");
-      return;
-    }
-
     const numericFields = [
-      ["Price", form.price],
-      ["Compare-at price", form.compareAtPrice || "0"],
+      ["Base selling price", form.price],
+      ["MRP", form.compareAtPrice || "0"],
       ["Cost price", form.costPrice || "0"],
       ["CGST rate", form.cgstRate || "0"],
       ["SGST rate", form.sgstRate || "0"],
@@ -261,7 +243,6 @@ export default function ProductForm({
         stock: Number(form.stock),
         lowStockThreshold: Number(form.lowStockThreshold),
         images: finalImages,
-        channels,
         variants: variants.map((v) => ({
           name: v.name.trim(),
           sku: v.sku.trim().toUpperCase(),
@@ -320,7 +301,7 @@ export default function ProductForm({
           <p className="mt-1 text-sm text-slate-500">
             {isEdit
               ? "Update product details, images and stock."
-              : "Add product details, images, variants and sales channels."}
+              : "Add master product details, images and variants."}
           </p>
         </div>
         <Link
@@ -390,10 +371,10 @@ export default function ProductForm({
           <section className="rounded-xl border border-slate-200 bg-white p-5">
             <h2 className="font-semibold text-slate-900">Pricing & Inventory</h2>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <Field label="Selling Price (₹) *">
+              <Field label="Base Selling Price (₹) *">
                 <input type="number" min="0" step="0.01" required value={form.price} onChange={(e) => updateField("price", e.target.value)} className={inputClass} />
               </Field>
-              <Field label="Compare-at Price (₹)">
+              <Field label="MRP (₹)">
                 <input type="number" min="0" step="0.01" value={form.compareAtPrice} onChange={(e) => updateField("compareAtPrice", e.target.value)} className={inputClass} />
               </Field>
               <Field label="Cost Price (₹)">
@@ -450,22 +431,6 @@ export default function ProductForm({
             )}
           </section>
 
-          <section className="rounded-xl border border-slate-200 bg-white p-5">
-            <h2 className="font-semibold text-slate-900">Sales Channels</h2>
-            <p className="mt-1 text-xs text-slate-500">Choose where this product should be listed.</p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {channelOptions.map((channel) => (
-                <label key={channel} className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 p-3 text-sm hover:border-blue-300">
-                  <input type="checkbox" checked={channels.includes(channel)} onChange={() => toggleChannel(channel)} className="h-4 w-4 accent-blue-600" />
-                  <span className="font-medium text-slate-700">{channel}</span>
-                  <span className="ml-auto text-[10px] text-slate-400">Selected for listing</span>
-                </label>
-              ))}
-            </div>
-            <p className="mt-3 text-xs text-amber-700">
-              Selecting a channel saves the preference only; it does not publish the product to that marketplace.
-            </p>
-          </section>
         </div>
 
         <aside className="space-y-5">

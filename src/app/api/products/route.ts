@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const channels = Array.isArray(body.channels) ? body.channels : ["Website"];
+    const channels = Array.isArray(body.channels) ? body.channels : [];
     const allowedChannels = ["Website", "Amazon", "Flipkart", "Meesho"];
 
     if (

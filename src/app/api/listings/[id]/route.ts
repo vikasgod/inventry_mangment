@@ -69,6 +69,38 @@ export async function PUT(
       allowed.description = body.description;
     }
 
+    if (body.image !== undefined) {
+      if (
+        typeof body.image !== "string" ||
+        (body.image && !body.image.startsWith("https://"))
+      ) {
+        return NextResponse.json(
+          { success: false, message: "Cover image must be a valid HTTPS URL." },
+          { status: 400 }
+        );
+      }
+      allowed.image = body.image;
+    }
+
+    if (body.images !== undefined) {
+      if (
+        !Array.isArray(body.images) ||
+        body.images.some(
+          (url: unknown) =>
+            typeof url !== "string" || !url.startsWith("https://")
+        )
+      ) {
+        return NextResponse.json(
+          { success: false, message: "Listing images must be valid HTTPS URLs." },
+          { status: 400 }
+        );
+      }
+      allowed.images =
+        body.image && !body.images.includes(body.image)
+          ? [body.image, ...body.images]
+          : body.images;
+    }
+
     const listing = await ChannelListing.findByIdAndUpdate(
       id,
       { $set: allowed },

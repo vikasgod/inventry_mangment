@@ -229,6 +229,8 @@ type ProductData = {
   name: string;
   sku: string;
   category?: string;
+  price?: number;
+  stock?: number;
   images?: {
     url: string;
     publicId?: string;
@@ -254,6 +256,8 @@ export async function POST(request: NextRequest) {
       stock,
       listingTitle,
       description,
+      image,
+      images,
     } = body;
 
     if (!productId || !channel) {
@@ -293,6 +297,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (
+      images !== undefined &&
+      (!Array.isArray(images) ||
+        images.some(
+          (url: unknown) =>
+            typeof url !== "string" || !url.startsWith("https://")
+        ))
+    ) {
+      return NextResponse.json(
+        { success: false, message: "Listing images must be valid HTTPS URLs." },
+        { status: 400 }
+      );
+    }
+
+    if (
+      image !== undefined &&
+      (typeof image !== "string" || (image && !image.startsWith("https://")))
+    ) {
+      return NextResponse.json(
+        { success: false, message: "Cover image must be a valid HTTPS URL." },
+        { status: 400 }
+      );
+    }
+
     const product = (await Product.findOne({
       _id: productId,
       isArchived: false,
@@ -321,6 +349,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const listingImageUrls =
+      images ?? product.images?.map((item) => item.url) ?? [];
+    const coverImage =
+      image || listingImageUrls[0] || product.images?.[0]?.url || "";
+
     const existingListing = await ChannelListing.findOne({
       productId: product._id,
       variantId: variant?._id || null,
@@ -343,7 +376,10 @@ export async function POST(request: NextRequest) {
 
       productName: product.name,
       sku: variant?.sku || product.sku,
-      image: product.images?.[0]?.url || "",
+      image: coverImage,
+      images: coverImage
+        ? [coverImage, ...listingImageUrls.filter((url: string) => url !== coverImage)]
+        : listingImageUrls,
       category: product.category || "",
 
       channel,

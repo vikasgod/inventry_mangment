@@ -29,6 +29,10 @@ const OrderItemSchema = new Schema(
       required: true,
       min: 0,
     },
+    unitCost: {
+      type: Number,
+      min: 0,
+    },
     quantity: {
       type: Number,
       required: true,
@@ -39,6 +43,7 @@ const OrderItemSchema = new Schema(
       required: true,
       min: 0,
     },
+    discount: { type: Number, min: 0, default: 0 },
     cgstRate: { type: Number, min: 0, max: 100, default: 0 },
     sgstRate: { type: Number, min: 0, max: 100, default: 0 },
   },
@@ -138,6 +143,7 @@ const OrderSchema = new Schema(
       default: 0,
       min: 0,
     },
+    appliedOfferCode: { type: String, default: "" },
 
     totalAmount: {
       type: Number,
