@@ -235,58 +235,6 @@ export default function ProductsPage() {
           configured.
         </div>
       )}
-      {/* Top header */}
-      <header className="sticky top-0 z-30 flex h-[60px] items-center gap-4 border-b border-slate-200 bg-white px-4 sm:px-6">
-        <div className="relative max-w-2xl flex-1">
-          <Search
-            size={18}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-          />
-          <input
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            placeholder="Search products, SKU, category..."
-            className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-          />
-        </div>
-
-        <button
-          type="button"
-          aria-label="Notifications"
-          className="relative rounded-lg p-2 text-slate-500 hover:bg-slate-100"
-        >
-          <Bell size={20} />
-          <span className="absolute right-0 top-0 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
-            3
-          </span>
-        </button>
-
-        <button
-          type="button"
-          className="hidden items-center gap-2 border-l border-slate-100 pl-4 text-sm sm:flex"
-        >
-          <span>🇮🇳</span>
-          <span className="font-medium">INR</span>
-          <ChevronDown size={14} className="text-slate-500" />
-        </button>
-
-        <button
-          type="button"
-          className="flex items-center gap-2 border-l border-slate-100 pl-3 sm:pl-5"
-        >
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-slate-500 to-blue-800 text-base font-semibold text-white">
-            V
-          </span>
-          <span className="hidden text-left sm:block">
-            <span className="block text-xs font-semibold">Vikas God</span>
-            <span className="block text-[10px] text-slate-500">Owner</span>
-          </span>
-          <ChevronDown size={14} className="hidden text-slate-500 sm:block" />
-        </button>
-      </header>
 
       <main className="space-y-4 p-4 sm:p-6">
         {/* Page title */}
