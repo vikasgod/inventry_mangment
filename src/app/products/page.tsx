@@ -4,9 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
-  Bell,
   Box,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronsUpDown,
@@ -14,7 +12,6 @@ import {
   Eye,
   Filter,
   Globe,
-  MoreVertical,
   Package,
   Pencil,
   Plus,
@@ -22,13 +19,11 @@ import {
   ShoppingCart,
   SlidersHorizontal,
   Trash,
-  TrendingDown,
-  TrendingUp,
   X,
 } from "lucide-react";
 import DeleteConfirmModal from "@/components/products/DeleteConfirmModal";
 import { StatCard } from "@/components/products/statCard";
-import { categories, Product, ProductStatus, statuses } from "@/components/dataType";
+import { categories, Product, statuses } from "@/components/dataType";
 
 function formatPrice(price: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -38,11 +33,12 @@ function formatPrice(price: number) {
   }).format(price);
 }
 
-function StatusBadge({ status }: { status: ProductStatus }) {
-  const styles: Record<ProductStatus, string> = {
+function StatusBadge({ status }: { status: Product["status"] }) {
+  const styles: Record<Product["status"], string> = {
     Active: "border-emerald-200 bg-emerald-50 text-emerald-700",
     "Low Stock": "border-amber-200 bg-amber-50 text-amber-700",
     "Out of Stock": "border-red-200 bg-red-50 text-red-700",
+    Draft: "border-slate-200 bg-slate-50 text-slate-600",
   };
 
   return (
