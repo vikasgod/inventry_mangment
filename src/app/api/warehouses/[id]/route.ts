@@ -31,7 +31,10 @@ export async function GET(
             );
         }
 
-        const warehouse = await Warehouse.findById(id).lean();
+        const warehouse = await Warehouse.findById(id).lean<{
+            name: string;
+            capacity: number;
+        }>();
 
         if (!warehouse) {
             return NextResponse.json(

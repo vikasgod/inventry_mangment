@@ -87,13 +87,14 @@ export async function PATCH(request: NextRequest, context: Context) {
     }
 
     if (typeof update.name === "string") {
-      update.name = update.name.trim();
+      const name = update.name.trim();
+      update.name = name;
 
-      if (!update.name) {
+      if (!name) {
         return NextResponse.json({ message: "Product name is required." }, { status: 400 });
       }
 
-      update.slug = update.name
+      update.slug = name
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-|-$/g, "");

@@ -77,6 +77,8 @@ export default function PricingOffersPage() {
   const [offersTotalPages, setOffersTotalPages] = useState(1);
   const [pricingTotal, setPricingTotal] = useState(0);
   const [offersTotal, setOffersTotal] = useState(0);
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
   const initialOfferForm = {
     name: "",
     type: "Percentage" as "Percentage" | "Flat",
@@ -187,9 +189,11 @@ export default function PricingOffersPage() {
 
       await loadPricing(pricingPage, search);
       setPricingModal(null);
-      alert("Pricing saved successfully!");
+      setNotice("Pricing saved successfully!");
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Failed to save pricing");
+      setError(
+        error instanceof Error ? error.message : "Failed to save pricing",
+      );
     } finally {
       setSaving(false);
     }
@@ -238,9 +242,11 @@ export default function PricingOffersPage() {
         products: "All Products",
       });
 
-      alert("Offer created successfully!");
+      setNotice("Offer created successfully!");
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Failed to create offer");
+      setError(
+        error instanceof Error ? error.message : "Failed to create offer",
+      );
     } finally {
       setSaving(false);
     }
@@ -268,9 +274,11 @@ export default function PricingOffersPage() {
         Math.max(1, Math.ceil(nextTotal / ITEMS_PER_PAGE)),
       );
       await loadOffers(nextPage, search, channelFilter, statusFilter);
-      alert("Offer deleted successfully!");
+      setNotice("Offer deleted successfully!");
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Failed to delete offer");
+      setError(
+        error instanceof Error ? error.message : "Failed to delete offer",
+      );
     }
   };
 
@@ -327,7 +335,29 @@ export default function PricingOffersPage() {
             </button>
           </div>
         </div>
+        {error && (
+          <div
+            className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+            role="alert"
+          >
+            {error}
+          </div>
+        )}
 
+        {notice && (
+          <div
+            className="mb-4 flex items-start justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800"
+            role="status"
+          >
+            <span>{notice}</span>
+            <button
+              onClick={() => setNotice("")}
+              aria-label="Dismiss notification"
+            >
+              <X size={17} />
+            </button>
+          </div>
+        )}
         {/* Statistics */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {[
@@ -429,8 +459,8 @@ export default function PricingOffersPage() {
           Channel prices are the order base prices. Active offers are applied
           when orders are created (no-code offers apply automatically; coded
           offers require the matching <code>offerCode</code>). Listing prices
-          remain listing-specific and are not published to marketplaces until
-          a seller API is connected.
+          remain listing-specific and are not published to marketplaces until a
+          seller API is connected.
         </div>
         {loading ? (
           <div className="rounded-xl border border-slate-200 bg-white p-12 text-center text-slate-500">

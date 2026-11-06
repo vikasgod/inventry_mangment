@@ -59,6 +59,8 @@ export async function GET(request: NextRequest) {
     const to = params.get("to") || undefined;
 
     const { start, end } = getDateRange(range, from, to);
+    const dailyTrend = range === "7";
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
     const orderMatch: any = {
       placedAt: { $gte: start, $lte: end },
@@ -76,7 +78,7 @@ export async function GET(request: NextRequest) {
 
     const [
       orderSummary,
-      salesTrend,
+      salesTrendData,
       marketplaceData,
       marketplaceProfitData,
       topProducts,
@@ -98,34 +100,48 @@ export async function GET(request: NextRequest) {
         { $match: orderMatch },
         {
           $group: {
-            _id: {
-              year: { $year: "$placedAt" },
-              month: { $month: "$placedAt" },
-            },
+            _id: dailyTrend
+              ? {
+                  date: {
+                    $dateToString: {
+                      format: "%Y-%m-%d",
+                      date: "$placedAt",
+                      timezone,
+                    },
+                  },
+                }
+              : {
+                  year: { $year: "$placedAt" },
+                  month: { $month: "$placedAt" },
+                },
             sales: { $sum: "$totalAmount" },
             orders: { $sum: 1 },
           },
         },
-        { $sort: { "_id.year": 1, "_id.month": 1 } },
+        {
+          $sort: dailyTrend
+            ? { "_id.date": 1 }
+            : { "_id.year": 1, "_id.month": 1 },
+        },
         {
           $project: {
             _id: 0,
-            month: {
-              $dateToString: {
-                format: "%b",
-                date: {
-                  $dateFromParts: {
-                    year: "$_id.year",
-                    month: "$_id.month",
-                    day: 1,
+            label: dailyTrend
+              ? "$_id.date"
+              : {
+                  $dateToString: {
+                    format: "%b",
+                    date: {
+                      $dateFromParts: {
+                        year: "$_id.year",
+                        month: "$_id.month",
+                        day: 1,
+                      },
+                    },
                   },
                 },
-              },
-            },
             sales: 1,
             orders: 1,
-            year: "$_id.year",
-            monthNumber: "$_id.month",
           },
         },
       ]),
@@ -352,6 +368,35 @@ export async function GET(request: NextRequest) {
       lowStockRecords: 0,
       totalProducts: 0,
     };
+
+    let salesTrend = salesTrendData;
+    if (dailyTrend) {
+      const salesByDate = new Map(
+        salesTrendData.map((item: any) => [item.label, item])
+      );
+      salesTrend = [];
+      const date = new Date(start);
+      date.setHours(0, 0, 0, 0);
+      const lastDate = new Date(end);
+      lastDate.setHours(0, 0, 0, 0);
+
+      while (date <= lastDate) {
+        const key = `${date.getFullYear()}-${String(
+          date.getMonth() + 1
+        ).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+        const item = salesByDate.get(key);
+        salesTrend.push({
+          label: date.toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            timeZone: timezone,
+          }),
+          sales: item?.sales ?? 0,
+          orders: item?.orders ?? 0,
+        });
+        date.setDate(date.getDate() + 1);
+      }
+    }
 
     const marketplaceTotals = channels.map((channel) => {
       const found = marketplaceData.find((item: any) => item._id === channel);

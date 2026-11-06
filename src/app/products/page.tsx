@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import DeleteConfirmModal from "@/components/products/DeleteConfirmModal";
 import { StatCard } from "@/components/products/statCard";
-import { categories, Product, statuses } from "@/components/dataType";
+import { categories, Product, ProductStatus, statuses } from "@/components/dataType";
 
 function formatPrice(price: number) {
   return new Intl.NumberFormat("en-IN", {

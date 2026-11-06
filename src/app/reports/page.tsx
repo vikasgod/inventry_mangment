@@ -49,11 +49,9 @@ type ReportData = {
     totalProducts: number;
   };
   salesTrend: {
-    month: string;
+    label: string;
     sales: number;
     orders: number;
-    year: number;
-    monthNumber: number;
   }[];
   marketplaceData: {
     channel: string;
@@ -208,8 +206,8 @@ export default function ReportsPage() {
     ];
 
     const salesRows = [
-      ["Month", "Sales", "Orders"],
-      ...data.salesTrend.map((item) => [item.month, item.sales, item.orders]),
+      ["Period", "Sales", "Orders"],
+      ...data.salesTrend.map((item) => [item.label, item.sales, item.orders]),
     ];
 
     const marketplaceRows = [
@@ -290,9 +288,9 @@ export default function ReportsPage() {
     });
 
     autoTable(pdf, {
-      head: [["Month", "Sales", "Orders"]],
+      head: [["Period", "Sales", "Orders"]],
       body: data.salesTrend.map((item) => [
-        item.month,
+        item.label,
         formatCurrency(item.sales),
         String(item.orders),
       ]),
@@ -526,7 +524,7 @@ export default function ReportsPage() {
                 >
                   <CartesianGrid stroke="#e8eef7" vertical={false} />
                   <XAxis
-                    dataKey="month"
+                    dataKey="label"
                     tick={{ fill: "#64748b", fontSize: 12 }}
                     axisLine={{ stroke: "#dbe4f0" }}
                     tickLine={false}
