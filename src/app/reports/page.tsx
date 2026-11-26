@@ -18,6 +18,7 @@ import {
 import {
   BarChart3,
   CalendarDays,
+  Clock3,
   ShoppingCart,
   ShoppingBag,
   Package,
@@ -42,6 +43,9 @@ type ReportData = {
   summary: {
     totalSales: number;
     totalOrders: number;
+    pendingAmount: number;
+    pendingOrders: number;
+    deliveredOrders: number;
     grossProfit: number | null;
     inventoryValue: number;
     lowStockProducts: number;
@@ -131,7 +135,7 @@ const reportCategories = [
   },
   {
     title: "Profit & Loss Report",
-    description: "Channel gross profit from saved order costs",
+    description: "Delivered channel profit from saved order costs",
     icon: TrendingUp,
     color: "emerald",
     type: "profit",
@@ -194,9 +198,12 @@ export default function ReportsPage() {
     const summaryRows = [
       ["Metric", "Value"],
       ["Total Sales", data.summary.totalSales],
+      ["Undelivered Orders Amount", data.summary.pendingAmount],
+      ["Pending Orders", data.summary.pendingOrders],
+      ["Delivered Orders", data.summary.deliveredOrders],
       ["Total Orders", data.summary.totalOrders],
       [
-        "Gross Profit",
+        "Delivered Gross Profit",
         data.summary.grossProfit ?? "Unavailable (order cost snapshots missing)",
       ],
       ["Inventory Value", data.summary.inventoryValue],
@@ -211,13 +218,13 @@ export default function ReportsPage() {
     ];
 
     const marketplaceRows = [
-      ["Marketplace", "Order Sales", "Net Item Sales", "Cost of Goods", "Gross Profit", "Orders"],
+      ["Marketplace", "Order Sales", "Delivered Net Item Sales", "Delivered Cost of Goods", "Delivered Gross Profit", "Orders"],
       ...data.marketplaceData.map((item) => [
         item.channel,
         item.sales,
         item.netItemSales,
         item.costOfGoodsSold,
-        item.grossProfit ?? "Unavailable (legacy order cost not saved)",
+        item.grossProfit ?? "Unavailable (delivered order cost not saved)",
         item.orders,
       ]),
     ];
@@ -274,9 +281,12 @@ export default function ReportsPage() {
       head: [["Metric", "Value"]],
       body: [
         ["Total Sales", formatCurrency(data.summary.totalSales)],
+        ["Undelivered Orders Amount", formatCurrency(data.summary.pendingAmount)],
+        ["Pending Orders", String(data.summary.pendingOrders)],
+        ["Delivered Orders", String(data.summary.deliveredOrders)],
         ["Total Orders", String(data.summary.totalOrders)],
         [
-          "Gross Profit",
+          "Delivered Gross Profit",
           data.summary.grossProfit === null
             ? "Unavailable (order cost snapshots missing)"
             : formatCurrency(data.summary.grossProfit),
@@ -301,7 +311,7 @@ export default function ReportsPage() {
     });
 
     autoTable(pdf, {
-      head: [["Marketplace", "Order Sales", "Net Item Sales", "Cost of Goods", "Gross Profit", "Orders"]],
+      head: [["Marketplace", "Order Sales", "Delivered Net Item Sales", "Delivered Cost of Goods", "Delivered Gross Profit", "Orders"]],
       body: data.marketplaceData.map((item) => [
         item.channel,
         formatCurrency(item.sales),
@@ -435,17 +445,25 @@ export default function ReportsPage() {
       )}
 
       {/* Summary cards */}
-      <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-5">
+      <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
         <SummaryCard
           title="Total Sales"
           value={formatCurrency(data?.summary.totalSales || 0)}
-          subtitle="For selected period"
+          subtitle="All non-cancelled orders in selected period"
           icon={<ShoppingCart size={25} />}
           color="blue"
           loading={loading}
         />
         <SummaryCard
-          title="Gross Profit"
+          title="Undelivered Amount"
+          value={formatCurrency(data?.summary.pendingAmount || 0)}
+          subtitle="Orders not yet Delivered"
+          icon={<Clock3 size={25} />}
+          color="orange"
+          loading={loading}
+        />
+        <SummaryCard
+          title="Delivered Gross Profit"
           value={
             data?.summary.grossProfit === null
               ? "Unavailable"
@@ -453,10 +471,26 @@ export default function ReportsPage() {
           }
           subtitle={
             data?.summary.grossProfit === null
-              ? "Some orders have no saved product cost"
-              : "Net item sales minus saved product costs"
+              ? "Some delivered orders have no saved product cost"
+              : "Delivered item sales minus saved product costs"
           }
           icon={<TrendingUp size={25} />}
+          color="green"
+          loading={loading}
+        />
+        <SummaryCard
+          title="Pending Orders"
+          value={(data?.summary.pendingOrders || 0).toLocaleString("en-IN")}
+          subtitle="Orders awaiting processing"
+          icon={<Clock3 size={25} />}
+          color="orange"
+          loading={loading}
+        />
+        <SummaryCard
+          title="Delivered Orders"
+          value={(data?.summary.deliveredOrders || 0).toLocaleString("en-IN")}
+          subtitle="Delivered in selected period"
+          icon={<ShoppingBag size={25} />}
           color="green"
           loading={loading}
         />
@@ -645,7 +679,7 @@ export default function ReportsPage() {
                       Order sales: {formatCurrency(item.sales)}
                     </p>
                     <p className="ml-5 mt-0.5 text-xs text-slate-500">
-                      Gross profit:{" "}
+                      Delivered gross profit:{" "}
                       {item.grossProfit === null
                         ? "Unavailable for older orders"
                         : formatCurrency(item.grossProfit)}
@@ -660,7 +694,7 @@ export default function ReportsPage() {
                 <p className="text-sm text-slate-500">No marketplace data</p>
               )}
               <p className="border-t border-slate-100 pt-3 text-xs leading-5 text-slate-500">
-                Gross profit uses saved item prices and cost snapshots, less item discounts. It excludes marketplace fees and shipping; tax is not separately adjusted.
+                Delivered gross profit uses saved item prices and cost snapshots, less item discounts. It excludes marketplace fees and shipping; tax is not separately adjusted.
               </p>
             </div>
           </div>

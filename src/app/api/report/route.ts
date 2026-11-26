@@ -92,6 +92,21 @@ export async function GET(request: NextRequest) {
             _id: null,
             totalSales: { $sum: "$totalAmount" },
             totalOrders: { $sum: 1 },
+            pendingAmount: {
+              $sum: {
+                $cond: [
+                  { $ne: ["$status", "Delivered"] },
+                  "$totalAmount",
+                  0,
+                ],
+              },
+            },
+            pendingOrders: {
+              $sum: { $cond: [{ $eq: ["$status", "Pending"] }, 1, 0] },
+            },
+            deliveredOrders: {
+              $sum: { $cond: [{ $eq: ["$status", "Delivered"] }, 1, 0] },
+            },
           },
         },
       ]),
@@ -160,6 +175,7 @@ export async function GET(request: NextRequest) {
 
       Order.aggregate([
         { $match: orderMatch },
+        { $match: { status: "Delivered" } },
         { $unwind: "$items" },
         {
           $group: {
@@ -236,6 +252,7 @@ export async function GET(request: NextRequest) {
             netItemSales: { $sum: "$netItemSales" },
             costOfGoodsSold: { $sum: "$costOfGoodsSold" },
             missingCostItems: { $sum: "$missingCostItems" },
+            deliveredOrders: { $sum: 1 },
           },
         },
       ]),
@@ -331,12 +348,12 @@ export async function GET(request: NextRequest) {
             _id: null,
             inventoryValue: { $sum: "$stockValue" },
             totalUnits: { $sum: "$onHand" },
-            lowStockRecords: {
-              $sum: {
+            lowStockProductIds: {
+              $addToSet: {
                 $cond: [
                   { $lte: ["$availableStock", "$safetyStock"] },
-                  1,
-                  0,
+                  "$productId",
+                  null,
                 ],
               },
             },
@@ -348,7 +365,9 @@ export async function GET(request: NextRequest) {
             _id: 0,
             inventoryValue: 1,
             totalUnits: 1,
-            lowStockRecords: 1,
+            lowStockProducts: {
+              $size: { $setDifference: ["$lowStockProductIds", [null]] },
+            },
             totalProducts: { $size: "$productIds" },
           },
         },
@@ -360,12 +379,15 @@ export async function GET(request: NextRequest) {
     const summary = orderSummary[0] || {
       totalSales: 0,
       totalOrders: 0,
+      pendingAmount: 0,
+      pendingOrders: 0,
+      deliveredOrders: 0,
     };
 
     const inventory = inventoryData[0] || {
       inventoryValue: 0,
       totalUnits: 0,
-      lowStockRecords: 0,
+      lowStockProducts: 0,
       totalProducts: 0,
     };
 
@@ -409,6 +431,7 @@ export async function GET(request: NextRequest) {
         orders: found?.orders || 0,
         netItemSales: profit?.netItemSales || 0,
         costOfGoodsSold: profit?.costOfGoodsSold || 0,
+        deliveredOrders: profit?.deliveredOrders || 0,
         grossProfit:
           (profit?.missingCostItems || 0) > 0
             ? null
@@ -428,8 +451,11 @@ export async function GET(request: NextRequest) {
       summary: {
         totalSales: summary.totalSales,
         totalOrders: summary.totalOrders,
+        pendingAmount: summary.pendingAmount,
+        pendingOrders: summary.pendingOrders,
+        deliveredOrders: summary.deliveredOrders,
         grossProfit: marketplaceTotals.some(
-          (item) => item.orders > 0 && item.grossProfit === null
+          (item) => item.deliveredOrders > 0 && item.grossProfit === null
         )
           ? null
           : marketplaceTotals.reduce(
@@ -437,7 +463,7 @@ export async function GET(request: NextRequest) {
               0
             ),
         inventoryValue: inventory.inventoryValue,
-        lowStockProducts: inventory.lowStockRecords,
+        lowStockProducts: inventory.lowStockProducts,
         totalUnits: inventory.totalUnits,
         totalProducts: inventory.totalProducts,
       },
