@@ -1,5 +1,3 @@
-import { Worker } from "bullmq";
-import IORedis from "ioredis";
 import mongoose from "mongoose";
 import dbConnect from "../src/lib/mongodb";
 import SyncJob from "../src/models/SyncJob";
@@ -9,16 +7,28 @@ import ChannelListing from "../src/models/ChannelListing";
 import { getAdapter } from "../src/modules/marketplace/registry";
 import type { Channel, PublishProductInput } from "../src/modules/marketplace/types";
 
-if (!process.env.REDIS_URL) throw new Error("REDIS_URL is missing");
-const connection = new IORedis(process.env.REDIS_URL, { maxRetriesPerRequest: null });
+const POLL_INTERVAL_MS = 1000;
+const MAX_ATTEMPTS = 5;
+const CONCURRENCY = 5;
+let shuttingDown = false;
 
-const worker = new Worker("marketplace-sync", async (job) => {
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function processNextJob() {
   await dbConnect();
-  const syncJob = await SyncJob.findById(job.data.syncJobId);
-  if (!syncJob) throw new Error("Sync job record not found");
-  syncJob.status = "processing";
-  syncJob.attempts += 1;
-  await syncJob.save();
+  const now = new Date();
+  const syncJob = await SyncJob.findOneAndUpdate({
+    status: { $in: ["queued", "retrying"] },
+    $or: [
+      { nextAttemptAt: { $exists: false } },
+      { nextAttemptAt: { $lte: now } },
+    ],
+  }, {
+    $set: { status: "processing" },
+    $inc: { attempts: 1 },
+    $unset: { nextAttemptAt: 1 },
+  }, { sort: { createdAt: 1 }, new: true });
+  if (!syncJob) return false;
 
   try {
     const channel = syncJob.channel as Channel;
@@ -71,17 +81,43 @@ const worker = new Worker("marketplace-sync", async (job) => {
     }
     syncJob.completedAt = new Date();
     await syncJob.save();
-    if (syncJob.status === "manual_required") return { status: "manual_required" };
+    if (syncJob.status === "manual_required") return true;
     if (syncJob.status === "failed") throw new Error(syncJob.lastError || "Adapter returned failed");
-    return { status: syncJob.status };
+    console.log(`Sync job ${syncJob.id} completed`);
   } catch (error) {
-    syncJob.status = "failed";
     syncJob.lastError = error instanceof Error ? error.message : "Unknown sync error";
+    if (syncJob.attempts < MAX_ATTEMPTS) {
+      syncJob.status = "retrying";
+      syncJob.nextAttemptAt = new Date(Date.now() + Math.min(2000 * 2 ** (syncJob.attempts - 1), 60000));
+    } else {
+      syncJob.status = "failed";
+      syncJob.completedAt = new Date();
+    }
     await syncJob.save();
-    throw error;
+    console.error(`Sync job ${syncJob.id} failed:`, syncJob.lastError);
   }
-}, { connection, concurrency: 5 });
+  return true;
+}
 
-worker.on("completed", job => console.log(`Sync job ${job.id} completed`));
-worker.on("failed", (job, err) => console.error(`Sync job ${job?.id} failed:`, err.message));
-process.on("SIGINT", async () => { await worker.close(); await connection.quit(); await mongoose.disconnect(); process.exit(0); });
+async function runWorker() {
+  while (!shuttingDown) {
+    try {
+      const processed = await processNextJob();
+      if (!processed) await wait(POLL_INTERVAL_MS);
+    } catch (error) {
+      console.error("Sync worker polling failed:", error instanceof Error ? error.message : error);
+      await wait(POLL_INTERVAL_MS);
+    }
+  }
+}
+
+const workers = Array.from({ length: CONCURRENCY }, () => runWorker());
+
+async function shutdown() {
+  shuttingDown = true;
+  await Promise.all(workers);
+  await mongoose.disconnect();
+}
+
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);

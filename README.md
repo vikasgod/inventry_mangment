@@ -1,21 +1,20 @@
 # Inventory CRM — Next.js + TypeScript + MongoDB
 
-This project is a multi-channel inventory CRM foundation for one business: website, Amazon, Flipkart and Meesho. It includes a dashboard UI, product CRUD, multiple image upload (Cloudinary), inventory adjustment/read APIs, channel listing and price-rule models, sync-job tracking, a BullMQ worker scaffold, and channel adapter interfaces.
+This project is a multi-channel inventory CRM foundation for one business: website, Amazon, Flipkart and Meesho. It includes a dashboard UI, product CRUD, multiple image upload (Cloudinary), inventory adjustment/read APIs, channel listing and price-rule models, MongoDB-backed sync-job tracking and worker, and channel adapter interfaces.
 
 ## Requirements
 - Node.js 20+
 - MongoDB (local or Atlas)
-- Redis for background sync worker
 - Cloudinary account for product image upload
 
 ## Install and run (Windows PowerShell)
 1. Extract the ZIP.
 2. Open the `inventory-crm` folder in VS Code.
 3. Copy `.env.example` to `.env.local`.
-4. Fill in `MONGODB_URI`, `SESSION_SECRET`, `ADMIN_USERNAME` and `ADMIN_PASSWORD`. Cloudinary credentials are needed only for product image uploads; Redis is needed for queue/worker functionality.
+4. Fill in `MONGODB_URI`, `SESSION_SECRET`, `ADMIN_USERNAME` and `ADMIN_PASSWORD`. Cloudinary credentials are needed only for product image uploads.
 5. Run `npm install`.
 6. Run `npm run dev` and open http://localhost:3000.
-7. Start Redis and run `npm run worker` in a second terminal for sync jobs.
+7. Run `npm run worker` in a second terminal to process sync jobs from MongoDB.
 
 ## Sign-in and operator access
 - Set `SESSION_SECRET` to a unique random value of at least 32 characters, and configure `ADMIN_USERNAME` and `ADMIN_PASSWORD` before starting the app. The first login with those credentials creates the initial admin if none exists; there are no built-in credentials.
@@ -45,7 +44,7 @@ This project is a multi-channel inventory CRM foundation for one business: websi
 ## Phase status and production boundary
 - Phase 1: product and inventory foundation — starter APIs and UI included; review stock transactions before production.
 - Phase 2: website storefront, payment processing, full order lifecycle — not complete in this CRM dashboard starter.
-- Phase 3: queue, pricing, sync tracking and adapter scaffold — included as foundation.
+- Phase 3: MongoDB-backed queue, pricing, sync tracking and adapter scaffold — included as foundation.
 - Phase 4: Amazon and Flipkart — real API adapters are not enabled; configure authorized seller API access and implement/validate provider-specific payloads before live use.
 - Phase 5: Meesho — adapter access is account/partner dependent; default is manual/partner-required, not live API sync.
 

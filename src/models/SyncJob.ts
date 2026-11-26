@@ -7,9 +7,12 @@ const SyncJobSchema = new Schema({
   payload: { type: Schema.Types.Mixed, default: {} },
   status: { type: String, enum: ["queued", "processing", "succeeded", "retrying", "failed", "queue_error", "manual_required"], default: "queued", index: true },
   attempts: { type: Number, default: 0 },
+  nextAttemptAt: Date,
   lastError: String,
   result: { type: Schema.Types.Mixed },
   completedAt: Date,
 }, { timestamps: true });
+
+SyncJobSchema.index({ status: 1, nextAttemptAt: 1, createdAt: 1 });
 
 export default models.SyncJob || model("SyncJob", SyncJobSchema);

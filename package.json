@@ -10,10 +10,8 @@
     "worker": "tsx worker/index.ts"
   },
   "dependencies": {
-    "bullmq": "^5.34.10",
     "cloudinary": "^2.5.1",
     "dotenv": "^18.0.9",
-    "ioredis": "^5.4.2",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.9",
     "lucide-react": "^0.468.0",
