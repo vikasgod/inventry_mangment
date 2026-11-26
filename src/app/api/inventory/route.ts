@@ -8,8 +8,10 @@ import connectDB from "@/lib/mongodb";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  console.log("7344")
   const authorization = await authorizeRequest("inventory");
   if (authorization) return authorization;
+  console.log("734412")
 
   try {
     await connectDB();
