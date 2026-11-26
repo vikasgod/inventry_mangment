@@ -8,10 +8,8 @@ import connectDB from "@/lib/mongodb";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  console.log("7344")
   const authorization = await authorizeRequest("inventory");
   if (authorization) return authorization;
-  console.log("734412")
 
   try {
     await connectDB();
@@ -32,8 +30,6 @@ export async function GET(request: NextRequest) {
       })
       .sort({ updatedAt: -1 })
       .lean();
-
-    console.log("inventoryRows", inventoryRows)
 
     const records = inventoryRows
       .filter((row: any) => {
@@ -107,8 +103,6 @@ export async function GET(request: NextRequest) {
           updatedAt: row.updatedAt,
         };
       });
-    
-      console.log("records", records)
 
     const allInventory = await Inventory.find()
       .populate({
