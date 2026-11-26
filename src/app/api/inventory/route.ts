@@ -33,6 +33,8 @@ export async function GET(request: NextRequest) {
       .sort({ updatedAt: -1 })
       .lean();
 
+    console.log("inventoryRows", inventoryRows)
+
     const records = inventoryRows
       .filter((row: any) => {
         const product = row.productId;
@@ -105,6 +107,8 @@ export async function GET(request: NextRequest) {
           updatedAt: row.updatedAt,
         };
       });
+    
+      console.log("records", records)
 
     const allInventory = await Inventory.find()
       .populate({
